@@ -1,0 +1,26 @@
+vi720test build Oct 24 2026 09:17:41  fat=1 component=1
+boot 0x1C4=002006C0 0x1C8=D870700E 0x1A0=0C0000EE
+
+=== MODE A: 1280x240p @ 54 MHz (proven) -- pattern should be visible ===
+    [240p] field=59.826 Hz
+    [240p] line=63555 ns (~15.73 kHz)  hlw=858  eff pixel clock ~ 54000 kHz  maxline=526
+   holding ~20 s (HOME/Start to continue)...
+
+=== MODE B: 720p ATTEMPT @ 74.25 MHz (experimental) ===
+   expect line ~45 kHz; watch total lines (maxline) and field rate.
+  MODE B writes (74.25 MHz, HLW=413):
+    0x6C VICLK = 0001
+    0x1C4 = 00200AC0  0x1C8 = D880700E   (PLL 74.25 MHz)
+    0x04/06 HTR0 = 2232 019D   (HLW=413, hsync scaled)
+    0x08/0A HTR1 = 02B2 46BD   (HSY=61 HBE=141 HBS=345)
+    0x02 DCR = 0005 (progressive,NTSC)   0x48 HSW=5050 0x4A HSR=0100
+    0x00 VTR = 2D0C (ACV=720)   0x0C/0E VTO = 0024 0018   0x10/12 VTE = 0024 0018
+  >>> poking now <<<
+  readback 0x1C4=80200AC0 0x1C8=D880700E VTR=2D0C HTR0=2232019D
+    [720p] field=58.522 Hz
+    [720p] line=22248 ns (~44.94 kHz)  hlw=413  eff pixel clock ~ 74252 kHz  maxline=1536
+   interpretation: 720p60 wants ~45.0 kHz line, ~60 Hz field, maxline ~1500 (half-lines).
+   holding ~40 s (HOME/Start to continue)... look at the monitor now.
+
+restored. final 0x1C4=802006C0 0x1C8=D870700E
+DONE

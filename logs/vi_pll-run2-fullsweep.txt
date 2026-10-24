@@ -1,0 +1,443 @@
+vi_pll (WRITES clock regs) build Oct 24 2026 08:39:27
+fatInitDefault=1  component cable=1  tvmode=0
+=== boot-state candidate registers (will be restored after each experiment) ===
+  [boot] HW_AHBPROT(064)=FFFFFFFF HW_VI1CFG(018)=0000A9E0
+  [boot] HW 190: 00000000 07FFFFFF 00FFFFFF 10000100
+  [boot] HW 1A0: 8C0000EE 00035096 01F9346A 02587FCE
+  [boot] HW 1B0: 00201B42 080BA80C 00000020 10000900
+  [boot] HW 1C0: D8000000 002006C0 D870700E 02587FCE
+  [boot] HW 1D0: D8000000 009007C0 D8000090 0FFFFFFF
+  [boot] HW 1E0: 00292449 0046A012 00003924 80000019
+  [boot] HW 1F0: 7C513F6A 00000000 00000A48 00000000
+  VI 00: 1E0C 0005 4769 01AD 02EA 5140 0006 0030
+  VI 10: 0006 0030 81D8 81D8 81D8 81D8 0012 4300
+  VI 20: 0000 0000 0012 4300 0000 0000 006C 00D7
+  VI 30: 120E 0001 1001 0001 0001 0001 0001 0001
+  VI 40: 0000 0000 0000 0000 2828 0100 1AE7 71F0
+  VI 50: 0DB4 A574 00C1 188E C4C0 CBE2 FCEC DECF
+  VI 60: 1313 0F08 0008 0C0F 00FF 0000 0001 0001
+  VI 70: 0280 0000 0000 00FF 00FF 00FF 00FF 00FF
+no usb:/vi_pll.cfg found -> running built-in control + field-map sweep (33 experiments)
+reference pixel clocks: stock=54000 kHz  720p/1080i=74250 kHz  'extrems 148.5'=148500 kHz
+
+=== baseline: 1280x240p @ stock 54 MHz (no clock write) ===
+    [baseline] field=59.826 Hz
+    [baseline] line=63553 ns  hlw=858  counter~27001 kHz  EFF PIXEL CLOCK ~ 54002 kHz  (maxline 526)
+baseline effective pixel clock used for ratios = 54002 kHz
+
+### EXPERIMENT 0: CONTROL rewrite 0x1C4 boot value (no change)
+  WILL WRITE HW 1C4 = 002006C0 (mask FFFFFFFF)  before=002006C0
+  >>> poking now <<<
+  readback HW 1C4 = 002006C0
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 0 ---
+
+### EXPERIMENT 1: A MULT 0x1C4 byte1=0x06 (Nfb=7)
+  WILL WRITE HW 1C4 = 002006C0 (mask FFFFFFFF)  before=002006C0
+  >>> poking now <<<
+  readback HW 1C4 = 002006C0
+  model predicts ~ 54002 kHz for Nfb=7  ( (base/7)*Nfb )
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63554 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 1 ---
+
+### EXPERIMENT 2: A MULT 0x1C4 byte1=0x07 (Nfb=8)
+  WILL WRITE HW 1C4 = 002007C0 (mask FFFFFFFF)  before=002006C0
+  >>> poking now <<<
+  readback HW 1C4 = 002007C0
+  model predicts ~ 61716 kHz for Nfb=8  ( (base/7)*Nfb )
+    [after-write] field=68.372 Hz
+    [after-write] line=55610 ns  hlw=858  counter~30857 kHz  EFF PIXEL CLOCK ~ 61714 kHz  (maxline 526)
+    [after-write] ratio vs base = 1.14x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 2 ---
+
+### EXPERIMENT 3: A MULT 0x1C4 byte1=0x08 (Nfb=9)
+  WILL WRITE HW 1C4 = 002008C0 (mask FFFFFFFF)  before=002006C0
+  >>> poking now <<<
+  readback HW 1C4 = 002008C0
+  model predicts ~ 69431 kHz for Nfb=9  ( (base/7)*Nfb )
+    [after-write] field=76.919 Hz
+    [after-write] line=49431 ns  hlw=858  counter~34715 kHz  EFF PIXEL CLOCK ~ 69430 kHz  (maxline 526)
+    [after-write] ratio vs base = 1.28x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 3 ---
+
+### EXPERIMENT 4: A MULT 0x1C4 byte1=0x09 (Nfb=10)
+  WILL WRITE HW 1C4 = 002009C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802009C0
+  model predicts ~ 77145 kHz for Nfb=10  ( (base/7)*Nfb )
+    [after-write] field=85.466 Hz
+    [after-write] line=44489 ns  hlw=858  counter~38571 kHz  EFF PIXEL CLOCK ~ 77142 kHz  (maxline 526)
+    [after-write] ratio vs base = 1.42x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 4 ---
+
+### EXPERIMENT 5: A MULT 0x1C4 byte1=0x0A (Nfb=11)
+  WILL WRITE HW 1C4 = 00200AC0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 80200AC0
+  model predicts ~ 84860 kHz for Nfb=11  ( (base/7)*Nfb )
+    [after-write] field=94.012 Hz
+    [after-write] line=40442 ns  hlw=858  counter~42431 kHz  EFF PIXEL CLOCK ~ 84862 kHz  (maxline 526)
+    [after-write] ratio vs base = 1.57x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 5 ---
+
+### EXPERIMENT 6: A MULT 0x1C4 byte1=0x0C (Nfb=13)
+  WILL WRITE HW 1C4 = 00200CC0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 80200CC0
+  model predicts ~ 100289 kHz for Nfb=13  ( (base/7)*Nfb )
+    [after-write] field=111.105 Hz
+    [after-write] line=34220 ns  hlw=858  counter~50146 kHz  EFF PIXEL CLOCK ~ 100292 kHz  (maxline 526)
+    [after-write] ratio vs base = 1.85x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63554 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 6 ---
+
+### EXPERIMENT 7: A MULT 0x1C4 byte1=0x0E (Nfb=15)
+  WILL WRITE HW 1C4 = 00200EC0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 80200EC0
+  model predicts ~ 115718 kHz for Nfb=15  ( (base/7)*Nfb )
+    [after-write] field=128.199 Hz
+    [after-write] line=29657 ns  hlw=858  counter~57861 kHz  EFF PIXEL CLOCK ~ 115722 kHz  (maxline 526)
+    [after-write] ratio vs base = 2.14x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 7 ---
+
+### EXPERIMENT 8: A MULT 0x1C4 byte1=0x10 (Nfb=17)
+  WILL WRITE HW 1C4 = 002010C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802010C0
+  model predicts ~ 131147 kHz for Nfb=17  ( (base/7)*Nfb )
+    [after-write] field=145.292 Hz
+    [after-write] line=26169 ns  hlw=858  counter~65573 kHz  EFF PIXEL CLOCK ~ 131146 kHz  (maxline 526)
+    [after-write] ratio vs base = 2.42x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 8 ---
+
+### EXPERIMENT 9: A MULT 0x1C4 byte1=0x11 (Nfb=18)
+  WILL WRITE HW 1C4 = 002011C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802011C0
+  model predicts ~ 138862 kHz for Nfb=18  ( (base/7)*Nfb )
+    [after-write] field=153.839 Hz
+    [after-write] line=24714 ns  hlw=858  counter~69434 kHz  EFF PIXEL CLOCK ~ 138868 kHz  (maxline 526)
+    [after-write] ratio vs base = 2.57x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63553 ns  hlw=858  counter~27001 kHz  EFF PIXEL CLOCK ~ 54002 kHz  (maxline 526)
+    [after-restore] ratio vs base = 1.00x   -> no change
+  --- end experiment 9 ---
+
+### EXPERIMENT 10: A MULT 0x1C4 byte1=0x12 (Nfb=19)
+  WILL WRITE HW 1C4 = 002012C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802012C0
+  model predicts ~ 146576 kHz for Nfb=19  ( (base/7)*Nfb )
+    [after-write] field=162.385 Hz
+    [after-write] line=23413 ns  hlw=858  counter~73292 kHz  EFF PIXEL CLOCK ~ 146584 kHz  (maxline 526)
+    [after-write] ratio vs base = 2.71x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 10 ---
+
+### EXPERIMENT 11: A MULT 0x1C4 byte1=0x13 (Nfb=20)
+  WILL WRITE HW 1C4 = 002013C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802013C0
+  model predicts ~ 154291 kHz for Nfb=20  ( (base/7)*Nfb )
+    [after-write] field=170.932 Hz
+    [after-write] line=22243 ns  hlw=858  counter~77147 kHz  EFF PIXEL CLOCK ~ 154294 kHz  (maxline 526)
+    [after-write] ratio vs base = 2.85x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 11 ---
+
+### EXPERIMENT 12: A MULT 0x1C4 byte1=0x14 (Nfb=21)
+  WILL WRITE HW 1C4 = 002014C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802014C0
+  model predicts ~ 162006 kHz for Nfb=21  ( (base/7)*Nfb )
+    [after-write] field=179.478 Hz
+    [after-write] line=21184 ns  hlw=858  counter~81004 kHz  EFF PIXEL CLOCK ~ 162008 kHz  (maxline 526)
+    [after-write] ratio vs base = 3.00x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 12 ---
+
+### EXPERIMENT 13: A MULT 0x1C4 byte1=0x16 (Nfb=23)
+  WILL WRITE HW 1C4 = 002016C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802016C0
+  model predicts ~ 177435 kHz for Nfb=23  ( (base/7)*Nfb )
+    [after-write] field=196.572 Hz
+    [after-write] line=19342 ns  hlw=858  counter~88718 kHz  EFF PIXEL CLOCK ~ 177436 kHz  (maxline 526)
+    [after-write] ratio vs base = 3.28x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63553 ns  hlw=858  counter~27001 kHz  EFF PIXEL CLOCK ~ 54002 kHz  (maxline 526)
+    [after-restore] ratio vs base = 1.00x   -> no change
+  --- end experiment 13 ---
+
+### EXPERIMENT 14: A MULT 0x1C4 byte1=0x18 (Nfb=25)
+  WILL WRITE HW 1C4 = 002018C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802018C0
+  model predicts ~ 192864 kHz for Nfb=25  ( (base/7)*Nfb )
+    [after-write] field=213.665 Hz
+    [after-write] line=17795 ns  hlw=858  counter~96431 kHz  EFF PIXEL CLOCK ~ 192862 kHz  (maxline 526)
+    [after-write] ratio vs base = 3.57x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 14 ---
+
+### EXPERIMENT 15: B DIV 0x1C4 byte0=0xC0 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 002006C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802006C0
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 15 ---
+
+### EXPERIMENT 16: B DIV 0x1C4 byte0=0xC2 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 002006C2 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802006C2
+    [after-write] field=19.666 Hz
+    [after-write] line=190666 ns  hlw=858  counter~9000 kHz  EFF PIXEL CLOCK ~ 18000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.33x   -> clock went DOWN
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 16 ---
+
+### EXPERIMENT 17: B DIV 0x1C4 byte0=0xC4 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 002006C4 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802006C4
+    [after-write] field=11.666 Hz
+    [after-write] line=NO LOCK (beam counter not sweeping 40..200: clock stopped/unstable, maxline 526)
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 17 ---
+
+### EXPERIMENT 18: B DIV 0x1C4 byte0=0xC8 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 002006C8 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802006C8
+    [after-write] field=6.333 Hz
+    [after-write] line=NO LOCK (beam counter not sweeping 40..200: clock stopped/unstable, maxline 526)
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 18 ---
+
+### EXPERIMENT 19: B DIV 0x1C4 byte0=0xD0 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 002006D0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802006D0
+    [after-write] field=3.333 Hz
+    [after-write] line=NO LOCK (beam counter not sweeping 40..200: clock stopped/unstable, maxline 526)
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 19 ---
+
+### EXPERIMENT 20: B DIV 0x1C4 byte0=0xE0 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 002006E0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802006E0
+    [after-write] field=1.666 Hz
+    [after-write] line=NO LOCK (beam counter not sweeping 40..200: clock stopped/unstable, maxline 526)
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 20 ---
+
+### EXPERIMENT 21: B DIV 0x1C4 byte0=0x80 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 00200680 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 80200680
+    [after-write] field=57.689 Hz
+    [after-write] line=65908 ns  hlw=858  counter~26036 kHz  EFF PIXEL CLOCK ~ 52072 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.96x   -> clock went DOWN
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 21 ---
+
+### EXPERIMENT 22: B DIV 0x1C4 byte0=0x40 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 00200640 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 80200640
+    [after-write] field=55.552 Hz
+    [after-write] line=68443 ns  hlw=858  counter~25071 kHz  EFF PIXEL CLOCK ~ 50142 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.92x   -> clock went DOWN
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 22 ---
+
+### EXPERIMENT 23: B DIV 0x1C4 byte0=0x00 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 00200600 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 80200600
+    [after-write] field=53.416 Hz
+    [after-write] line=71180 ns  hlw=858  counter~24107 kHz  EFF PIXEL CLOCK ~ 48214 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.89x   -> clock went DOWN
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 23 ---
+
+### EXPERIMENT 24: B DIV 0x1C4 byte0=0xC1 (base mult, Nfb=7)
+  WILL WRITE HW 1C4 = 002006C1 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802006C1
+    [after-write] field=29.666 Hz
+    [after-write] line=127110 ns  hlw=858  counter~13500 kHz  EFF PIXEL CLOCK ~ 27000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.49x   -> clock went DOWN
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 24 ---
+
+### EXPERIMENT 25: C EXT 0x1C8 += 1<<0  -> D870700F
+  WILL WRITE HW 1C8 = D870700F (mask FFFFFFFF)  before=D870700E
+  >>> poking now <<<
+  readback HW 1C8 = D870700F
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 25 ---
+
+### EXPERIMENT 26: C EXT 0x1C8 += 1<<4  -> D870701E
+  WILL WRITE HW 1C8 = D870701E (mask FFFFFFFF)  before=D870700E
+  >>> poking now <<<
+  readback HW 1C8 = D870701E
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 26 ---
+
+### EXPERIMENT 27: C EXT 0x1C8 += 1<<8  -> D870710E
+  WILL WRITE HW 1C8 = D870710E (mask FFFFFFFF)  before=D870700E
+  >>> poking now <<<
+  readback HW 1C8 = D870710E
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 27 ---
+
+### EXPERIMENT 28: C EXT 0x1C8 += 1<<12  -> D870800E
+  WILL WRITE HW 1C8 = D870800E (mask FFFFFFFF)  before=D870700E
+  >>> poking now <<<
+  readback HW 1C8 = D870800E
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 28 ---
+
+### EXPERIMENT 29: C EXT 0x1C8 += 1<<16  -> D871700E
+  WILL WRITE HW 1C8 = D871700E (mask FFFFFFFF)  before=D870700E
+  >>> poking now <<<
+  readback HW 1C8 = D871700E
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 29 ---
+
+### EXPERIMENT 30: C EXT 0x1C8 += 1<<20  -> D880700E
+  WILL WRITE HW 1C8 = D880700E (mask FFFFFFFF)  before=D870700E
+  >>> poking now <<<
+  readback HW 1C8 = D880700E
+    [after-write] field=52.348 Hz
+    [after-write] line=72632 ns  hlw=858  counter~23625 kHz  EFF PIXEL CLOCK ~ 47250 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.87x   -> clock went DOWN
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 30 ---
+
+### EXPERIMENT 31: C EXT 0x1C8 += 1<<24  -> D970700E
+  WILL WRITE HW 1C8 = D970700E (mask FFFFFFFF)  before=D870700E
+  >>> poking now <<<
+  readback HW 1C8 = D970700E
+    [after-write] field=18.000 Hz
+    [after-write] line=208823 ns  hlw=858  counter~8217 kHz  EFF PIXEL CLOCK ~ 16434 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.30x   -> clock went DOWN
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63553 ns  hlw=858  counter~27001 kHz  EFF PIXEL CLOCK ~ 54002 kHz  (maxline 526)
+    [after-restore] ratio vs base = 1.00x   -> no change
+  --- end experiment 31 ---
+
+### EXPERIMENT 32: C EXT 0x1C8 += 1<<28  -> E870700E
+  WILL WRITE HW 1C8 = E870700E (mask FFFFFFFF)  before=D870700E
+  >>> poking now <<<
+  readback HW 1C8 = E870700E
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 32 ---
+
+all experiments done; candidates restored to boot snapshot.
+  [final] HW_AHBPROT(064)=FFFFFFFF HW_VI1CFG(018)=0000A9E0
+  [final] HW 190: 00000000 07FFFFFF 00FFFFFF 10000100
+  [final] HW 1A0: 0C0000EE 00035096 01F9346A 02587FCE
+  [final] HW 1B0: 00201B42 080BA80C 00000020 10000900
+  [final] HW 1C0: D8000000 802006C0 D870700E 02587FCE
+  [final] HW 1D0: D8000000 009007C0 D8000090 0FFFFFFF
+  [final] HW 1E0: 00292449 0046A012 00003924 80000019
+  [final] HW 1F0: 7C513F6A 00000000 00000A48 00000000
+DONE

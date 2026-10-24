@@ -1,0 +1,102 @@
+vi_pll (WRITES clock regs) build Oct 24 2026 08:26:20
+fatInitDefault=1  component cable=1  tvmode=0
+=== boot-state candidate registers (will be restored after each experiment) ===
+  [boot] HW_AHBPROT(064)=FFFFFFFF HW_VI1CFG(018)=0000A9E0
+  [boot] HW 190: 00000000 07FFFFFF 00FFFFFF 10000100
+  [boot] HW 1A0: 0C0000EE 00035096 01F9346A 02587FCE
+  [boot] HW 1B0: 00201B42 080BA80C 00000020 10000900
+  [boot] HW 1C0: D8000000 002006C0 D870700E 02587FCE
+  [boot] HW 1D0: D8000000 009007C0 D8000090 0FFFFFFF
+  [boot] HW 1E0: 00292449 0046A012 00003924 80000019
+  [boot] HW 1F0: 7C513F6A 00000000 00000A48 00000000
+  VI 00: 1E0C 0005 4769 01AD 02EA 5140 0006 0030
+  VI 10: 0006 0030 81D8 81D8 81D8 81D8 0012 4080
+  VI 20: 0000 0000 0012 4080 0000 0000 0001 02E3
+  VI 30: 120E 0001 1001 0001 0001 0001 0001 0001
+  VI 40: 0000 0000 0000 0000 2828 0100 1AE7 71F0
+  VI 50: 0DB4 A574 00C1 188E C4C0 CBE2 FCEC DECF
+  VI 60: 1313 0F08 0008 0C0F 00FF 0000 0001 0001
+  VI 70: 0280 0000 0000 00FF 00FF 00FF 00FF 00FF
+no usb:/vi_pll.cfg found -> running built-in control + field-map sweep (18 experiments)
+reference pixel clocks: stock=54000 kHz  720p/1080i=74250 kHz  'extrems 148.5'=148500 kHz
+
+=== baseline: 1280x240p @ stock 54 MHz (no clock write) ===
+    [baseline] field=59.826 Hz
+    [baseline] line=63553 ns  hlw=858  counter~27001 kHz  EFF PIXEL CLOCK ~ 54002 kHz  (maxline 526)
+baseline effective pixel clock used for ratios = 54002 kHz
+
+### EXPERIMENT 0: CONTROL rewrite 0x1C4 with its own boot value (no change)
+  WILL WRITE HW 1C4 = 002006C0 (mask FFFFFFFF)  before=002006C0
+  >>> poking now <<<
+  readback HW 1C4 = 002006C0
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 0 ---
+
+### EXPERIMENT 1: CONTROL set 0x1A0 bit31 (=1, expect /2 -> ~27 MHz if it is a live divider)
+  WILL WRITE HW 1A0 = 80000000 (mask 80000000)  before=8C0000EE
+  >>> poking now <<<
+  readback HW 1A0 = 0C0000EE
+    [after-write] field=59.826 Hz
+    [after-write] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.99x   -> no change
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 1 ---
+
+### EXPERIMENT 2: MAP 0x1C4 += 1<<0  (probe nibble @ bit 0)
+  WILL WRITE HW 1C4 = 002006C1 (mask FFFFFFFF)  before=002006C0
+  >>> poking now <<<
+  readback HW 1C4 = 002006C1
+    [after-write] field=29.666 Hz
+    [after-write] line=127110 ns  hlw=858  counter~13500 kHz  EFF PIXEL CLOCK ~ 27000 kHz  (maxline 526)
+    [after-write] ratio vs base = 0.49x   -> clock went DOWN
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 2 ---
+
+### EXPERIMENT 3: MAP 0x1C4 += 1<<4  (probe nibble @ bit 4)
+  WILL WRITE HW 1C4 = 002006D0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802006D0
+    [after-write] field=3.333 Hz
+    [after-write] line=NO LOCK (beam counter not sweeping 40..200: clock stopped/unstable, maxline 526)
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 3 ---
+
+### EXPERIMENT 4: MAP 0x1C4 += 1<<8  (probe nibble @ bit 8)
+  WILL WRITE HW 1C4 = 002007C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802007C0
+    [after-write] field=68.372 Hz
+    [after-write] line=55610 ns  hlw=858  counter~30857 kHz  EFF PIXEL CLOCK ~ 61714 kHz  (maxline 526)
+    [after-write] ratio vs base = 1.14x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 4 ---
+
+### EXPERIMENT 5: MAP 0x1C4 += 1<<12  (probe nibble @ bit 12)
+  WILL WRITE HW 1C4 = 002016C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802016C0
+    [after-write] field=196.572 Hz
+    [after-write] line=19341 ns  hlw=858  counter~88723 kHz  EFF PIXEL CLOCK ~ 177446 kHz  (maxline 526)
+    [after-write] ratio vs base = 3.28x   -> >>> CLOCK WENT UP <<<
+    [after-restore] field=59.826 Hz
+    [after-restore] line=63555 ns  hlw=858  counter~27000 kHz  EFF PIXEL CLOCK ~ 54000 kHz  (maxline 526)
+    [after-restore] ratio vs base = 0.99x   -> no change
+  --- end experiment 5 ---
+
+### EXPERIMENT 6: MAP 0x1C4 += 1<<16  (probe nibble @ bit 16)
+  WILL WRITE HW 1C4 = 002106C0 (mask FFFFFFFF)  before=802006C0
+  >>> poking now <<<
+  readback HW 1C4 = 802106C0

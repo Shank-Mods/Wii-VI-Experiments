@@ -1,0 +1,35 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitppc:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all tools
+        run: |
+          set -eux
+          powerpc-eabi-gcc --version | head -1
+          for d in vi_probe vi_pll vi720test; do
+            echo "=== $d ==="
+            make -C "tools/$d"
+            ls -l "tools/$d/boot.dol"
+          done
+      - name: Stage dols
+        run: |
+          set -eux
+          for d in vi_probe vi_pll vi720test; do
+            mkdir -p "dist/apps/$d"
+            cp "tools/$d/boot.dol" "tools/$d/meta.xml" "dist/apps/$d/"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wii-vi-clock-apps
+          path: dist/**
