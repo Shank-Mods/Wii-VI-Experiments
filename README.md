@@ -36,6 +36,8 @@ USB drive. All touched registers reset on power cycle.
 | **vi_probe** | Read-only. Logs VI timing + Hollywood clock/PLL registers in stock modes. Writes nothing. |
 | **vi_pll** | Writes the PLL candidates, measures the resulting clock, logs before/after with write-ahead logging and auto-restore. Default sweep confirms the HD targets; a `vi_pll.cfg` on the USB root overrides it. |
 | **vi720test** | Sets 74.25 MHz, programs a 720p-rate raster, draws a test pattern, and measures the real line/field/total-lines. Colour-diagnostic patterns (grayscale / primaries / fine). |
+| **chromatest** | YUV 4:2:2 torture test with brute-force pixel-doubling (240p/480i/480p standard + 240p/480i X2 at 1280). |
+| **chromatest480** | 480p-only variant: standard 480p vs a double-horizontal 480p that outputs **1440 wide at ~108 MHz** (PLL Nfb=14), duplicating each pixel so its colour fills a full 4:2:2 pair. |
 
 ## Build
 
