@@ -26,6 +26,7 @@
 #include <fat.h>
 #include <wiiuse/wpad.h>
 #include <ogc/pad.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
