@@ -17,7 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build all tools
-        shell: bash
         run: |
           set -u
           powerpc-eabi-gcc --version | head -1
