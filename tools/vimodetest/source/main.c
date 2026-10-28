@@ -152,8 +152,10 @@ static void calc_mode(const Mode *m, Calc *c)
     c->HBE = h->S + h->BP;
     c->HBS = c->HBE + h->A - c->HLW;
     // colour-burst window (only used by the analog encoder), kept inside the blanking
-    c->hcs = h->hcs ? h->hcs : 71;
-    c->hce = h->hce ? h->hce : 105;
+    // (stock 71..105 of an 858-clock line, scaled to this line length so it sits at the
+    // same point in time in every mode)
+    c->hcs = h->hcs ? h->hcs : (u8)((71u * h->T + 429) / 858);
+    c->hce = h->hce ? h->hce : (u8)((105u * h->T + 429) / 858);
     if (c->hce >= c->HBE) c->hce = c->HBE - 1;
     if (c->hcs >= c->hce) c->hcs = c->hce - 1;
     c->psbO = v->psb;
@@ -251,85 +253,146 @@ static u32 pll_1c8(const Clock *k)
     return (boot1c8 & ~0x00F00000u) | ((u32)k->v << 20);
 }
 
-static void program_vi(const Calc *c, void *fb)
+// ---- register images ---------------------------------------------------------------
+// Every mode switch writes a complete VI register image after a VI reset, so the result
+// never depends on which mode ran before (VI counters, field parity, leftover registers).
+// Offsets are byte offsets; the read-only / status registers are never written.
+static const u8 img_regs[] = {
+    0x00, 0x04, 0x06, 0x08, 0x0A, 0x0C, 0x0E, 0x10, 0x12, 0x14, 0x16, 0x18, 0x1A,
+    0x1C, 0x1E, 0x20, 0x22, 0x24, 0x26, 0x28, 0x2A,
+    0x30, 0x32, 0x34, 0x36, 0x38, 0x3A, 0x3C, 0x3E,
+    0x48, 0x4A, 0x4C, 0x4E, 0x50, 0x52, 0x54, 0x56, 0x58, 0x5A, 0x5C, 0x5E, 0x60, 0x62,
+    0x64, 0x66, 0x68, 0x6A, 0x6C, 0x70 };
+#define NIMG (sizeof(img_regs))
+typedef struct { u16 v[NIMG]; u16 dcr; } VIImage;
+static VIImage safe_img;          // the safe mode exactly as libogc programmed it at boot
+
+static u16 img_mask(u8 off)
 {
-    const Clock *k = &clocks[c->m->clk];
+    // display-interrupt registers: bit 15 is the interrupt status (write 0 = clear)
+    if (off == 0x30 || off == 0x34 || off == 0x38 || off == 0x3C) return 0x7FFF;
+    return 0xFFFF;
+}
+static void img_read(VIImage *im)
+{
+    for (u32 i = 0; i < NIMG; i++) im->v[i] = VI[img_regs[i] / 2] & img_mask(img_regs[i]);
+    im->dcr = VI[0x02 / 2];
+}
+static int img_index(u8 off) { for (u32 i = 0; i < NIMG; i++) if (img_regs[i] == off) return i; return -1; }
+static void img_set(VIImage *im, u8 off, u16 v) { int i = img_index(off); if (i >= 0) im->v[i] = v; }
+
+static void build_image(const Calc *c, void *fb, VIImage *im)
+{
     const VTim *v = c->m->v;
+    *im = safe_img;                               // filters, DI1-3, scaler width etc.
     u16 wpl = c->A / 16;
     u16 std = c->il ? wpl * 2 : wpl;
-    u16 dcr = (VI[0x02 / 2] & 0x0300) | 0x0001 | (c->il ? 0 : 0x0004); // keep FMT, ENB, NIN
-    u32 p4 = pll_1c4(k), p8 = pll_1c8(k);
+    img_set(im, 0x6C, clocks[c->m->clk].viclk);
+    img_set(im, 0x00, (u16)((v->acv << 4) | v->equ));
+    img_set(im, 0x04, (u16)((c->hcs << 8) | c->hce));
+    img_set(im, 0x06, c->HLW);
+    img_set(im, 0x08, (u16)(((c->HBE >> 9) & 1) | (c->HBS << 1)));
+    img_set(im, 0x0A, (u16)(((c->HBE & 0x1FF) << 7) | c->HSY));
+    img_set(im, 0x0C, c->psbO); img_set(im, 0x0E, c->prbO);
+    img_set(im, 0x10, c->psbE); img_set(im, 0x12, c->prbE);
+    img_set(im, 0x14, (u16)((c->beO << 5) | c->bsO));
+    img_set(im, 0x16, (u16)((c->beO << 5) | c->bsO));
+    img_set(im, 0x18, (u16)((c->beE << 5) | c->bsE));
+    img_set(im, 0x1A, (u16)((c->beE << 5) | c->bsE));
+    u32 t = MEM_VIRTUAL_TO_PHYSICAL(fb);
+    u32 b = c->il ? t + (u32)c->A * 2 : t;
+    u32 flag = 0;
+    if (t >= 0x01000000 || b >= 0x01000000) { flag = 1; t >>= 5; b >>= 5; }
+    img_set(im, 0x1C, (u16)((flag << 12) | ((t >> 16) & 0xFF)));
+    img_set(im, 0x1E, (u16)(t & 0xFFFF));
+    img_set(im, 0x24, (u16)((b >> 16) & 0xFF));
+    img_set(im, 0x26, (u16)(b & 0xFFFF));
+    img_set(im, 0x30, (u16)(0x1000 | (c->N / 2 + 1)));
+    img_set(im, 0x32, (u16)(((c->N & 1) ? c->HLW : 0) + 1));
+    img_set(im, 0x34, 0x1001); img_set(im, 0x36, 0x0001);
+    img_set(im, 0x48, (u16)((wpl << 8) | std));
+    img_set(im, 0x4A, 0x0100);                    // horizontal scaler off
+    im->dcr = (safe_img.dcr & 0x0300) | 0x0001 | (c->il ? 0 : 0x0004);   // FMT, ENB, NIN
+}
 
-    logf_("  regs: VTR=%04X DCR=%04X HTR0=%04X%04X HTR1=%04X%04X VTO=%04X%04X VTE=%04X%04X",
-          (v->acv << 4) | v->equ, dcr, (c->hcs << 8) | c->hce, c->HLW,
-          ((c->HBE >> 9) & 1) | (c->HBS << 1), ((c->HBE & 0x1FF) << 7) | c->HSY,
-          c->psbO, c->prbO, c->psbE, c->prbE);
-    logf_("  regs: PICCONF=%04X DI0=%04X/%04X VICLK=%u 0x1C4=%08X 0x1C8=%08X",
-          (wpl << 8) | std, 0x1000 | (c->N / 2 + 1), ((c->N & 1) ? c->HLW : 0) + 1,
-          k->viclk, (unsigned)p4, (unsigned)p8);
+static void log_image(const char *what, const VIImage *im)
+{
+    char line[200]; int n = 0;
+    n += snprintf(line + n, sizeof(line) - n, "  %s DCR=%04X", what, im->dcr);
+    for (u32 i = 0; i < NIMG; i++) {
+        n += snprintf(line + n, sizeof(line) - n, " %02X=%04X", img_regs[i], im->v[i]);
+        if (n > 150 || i == NIMG - 1) { logf_("%s", line); n = snprintf(line, sizeof(line), "   "); }
+    }
+}
 
-    // 1. Stop the VI (no scanout, no framebuffer reads) before touching its clock: the PLL
-    //    briefly runs unlocked after CLKF changes, and the VI should not be fetching from
-    //    memory on a glitching clock.
+// VI off -> reset -> clock -> settle -> full register image -> VI on.
+static void apply_image(const VIImage *im, u32 p4, u32 p8)
+{
     u32 l; _CPU_ISR_Disable(l);
-    VI[0x02 / 2] = VI[0x02 / 2] & ~0x0001;
+    VI[0x02 / 2] = VI[0x02 / 2] & ~0x0001;        // stop scanout and fetches
     _CPU_ISR_Restore(l);
     tb_delay_ms(2);
-    // 2. Reprogram the PLL and let it relock while the VI is idle.
-    bool pll_change = (HW(0x1C4) & 0x7FFFFFFFu) != p4 || HW(0x1C8) != p8;
     _CPU_ISR_Disable(l);
+    VI[0x02 / 2] = 0x0002;                        // reset counters / field state
+    _CPU_ISR_Restore(l);
+    tb_delay_ms(1);
+    _CPU_ISR_Disable(l);
+    VI[0x02 / 2] = 0x0000;
+    bool pll_change = (HW(0x1C4) & 0x7FFFFFFFu) != p4 || HW(0x1C8) != p8;
     HW(0x1C4) = p4;
     HW(0x1C8) = p8;
     _CPU_ISR_Restore(l);
     if (pll_change) tb_delay_ms(50);
-    // 3. Load the new timing, then enable (DCR last).
     _CPU_ISR_Disable(l);
-    VI[0x6C / 2] = k->viclk;
-    VI[0x00 / 2] = (u16)((v->acv << 4) | v->equ);
-    VI[0x04 / 2] = (u16)((c->hcs << 8) | c->hce);
-    VI[0x06 / 2] = c->HLW;
-    VI[0x08 / 2] = (u16)(((c->HBE >> 9) & 1) | (c->HBS << 1));
-    VI[0x0A / 2] = (u16)(((c->HBE & 0x1FF) << 7) | c->HSY);
-    VI[0x0C / 2] = c->psbO;  VI[0x0E / 2] = c->prbO;
-    VI[0x10 / 2] = c->psbE;  VI[0x12 / 2] = c->prbE;
-    VI[0x14 / 2] = (u16)((c->beO << 5) | c->bsO);
-    VI[0x16 / 2] = (u16)((c->beO << 5) | c->bsO);
-    VI[0x18 / 2] = (u16)((c->beE << 5) | c->bsE);
-    VI[0x1A / 2] = (u16)((c->beE << 5) | c->bsE);
-    set_fbb(c, fb);
-    VI[0x30 / 2] = (u16)(0x1000 | (c->N / 2 + 1));
-    VI[0x32 / 2] = (u16)(((c->N & 1) ? c->HLW : 0) + 1);
-    VI[0x48 / 2] = (u16)((wpl << 8) | std);
-    VI[0x4A / 2] = 0x0100;      // horizontal scaler off: 1 fetched pixel per output pixel
-    VI[0x02 / 2] = dcr;         // enable last
+    for (u32 i = 0; i < NIMG; i++) VI[img_regs[i] / 2] = im->v[i];
+    VI[0x02 / 2] = im->dcr;                       // enable last
     _CPU_ISR_Restore(l);
+}
+
+// Read the registers back after a few fields and report anything that differs from what
+// was written (something else overwrote it, or the hardware doesn't hold that value).
+static int verify_image(const VIImage *im, const char *what)
+{
+    VIImage rd; img_read(&rd);
+    int bad = 0;
+    for (u32 i = 0; i < NIMG; i++)
+        if (rd.v[i] != im->v[i]) {
+            logf_("  VERIFY %s: reg %02X wrote %04X read %04X", what, img_regs[i], im->v[i], rd.v[i]);
+            bad++;
+        }
+    if ((rd.dcr & 0x030D) != (im->dcr & 0x030D)) {
+        logf_("  VERIFY %s: DCR wrote %04X read %04X", what, im->dcr, rd.dcr);
+        bad++;
+    }
+    if (!bad) logf_("  verify %s: all %u registers read back as written", what, (unsigned)(NIMG + 1));
+    return bad;
+}
+
+static VIImage cur_img;
+
+static void program_vi(const Calc *c, void *fb)
+{
+    const Clock *k = &clocks[c->m->clk];
+    build_image(c, fb, &cur_img);
+    log_image("write", &cur_img);
+    logf_("  PLL 0x1C4=%08X 0x1C8=%08X", (unsigned)pll_1c4(k), (unsigned)pll_1c8(k));
+    apply_image(&cur_img, pll_1c4(k), pll_1c8(k));
 }
 
 static void restore_safe(void)
 {
-    // Same order as entering a mode: VI off, clock back to boot, settle, VI on, then let
-    // libogc rewrite every timing register for the safe mode at the next retrace.
-    u32 l; _CPU_ISR_Disable(l);
-    u16 dcr = VI[0x02 / 2];
-    VI[0x02 / 2] = dcr & ~0x0001;
-    _CPU_ISR_Restore(l);
-    tb_delay_ms(2);
-    bool pll_change = (HW(0x1C4) & 0x7FFFFFFFu) != boot1c4 || HW(0x1C8) != boot1c8;
-    _CPU_ISR_Disable(l);
-    HW(0x1C4) = boot1c4;
-    HW(0x1C8) = boot1c8;
-    _CPU_ISR_Restore(l);
-    if (pll_change) tb_delay_ms(50);
-    _CPU_ISR_Disable(l);
-    VI[0x02 / 2] = dcr | 0x0001;   // custom timing at the stock clock, just until the flush
-    _CPU_ISR_Restore(l);
-    VIDEO_Configure(safe);         // marks every timing register for rewrite
+    // Put back the exact register image the safe mode had at boot (deterministic, works
+    // even if no retrace interrupt arrives), then have libogc re-assert the same mode so
+    // its own shadow state matches.
+    apply_image(&safe_img, boot1c4, boot1c8);
+    VIDEO_Configure(safe);
     VIDEO_SetNextFramebuffer(menu_xfb);
     VIDEO_SetBlack(false);
     VIDEO_Flush();
     int got = 0;
     for (int i = 0; i < 4; i++) got += wait_retrace(200);
     logf_("  returned to safe mode (%d/4 retraces seen)", got);
+    verify_image(&safe_img, "safe");
 }
 
 // ======================================================================= measurement
@@ -747,7 +810,10 @@ static void run_mode(int idx)
     clear_fb(xfb[1], c.xfb_bytes);
     render_frame(xfb[front]);
     program_vi(&c, xfb[front]);
-    for (int i = 0; i < 4; i++) wait_retrace(150);
+    int got = 0;
+    for (int i = 0; i < 4; i++) got += wait_retrace(150);
+    logf_("  %d/4 retraces seen after enable", got);
+    verify_image(&cur_img, "mode");
 
     cur_meas = measure();
     last_meas[idx] = cur_meas;
@@ -882,8 +948,8 @@ int main(void)
     VIDEO_SetNextFramebuffer(menu_xfb);
     VIDEO_SetBlack(false);
     VIDEO_Flush();
-    wait_retrace(200);
-    if (safe->viTVMode & VI_NON_INTERLACE) wait_retrace(200);
+    for (int i = 0; i < 4; i++) wait_retrace(200);   // libogc has applied the safe mode
+    img_read(&safe_img);
 
     fat_ok = fatInitDefault();
     logf_("");
@@ -891,6 +957,7 @@ int main(void)
     logf_("boot 0x1C4=%08X 0x1C8=%08X  safe viTVMode=%u %ux%u  xfb0=%08X xfb1=%08X",
           (unsigned)boot1c4, (unsigned)boot1c8, safe->viTVMode, safe->fbWidth, safe->xfbHeight,
           (unsigned)MEM_VIRTUAL_TO_PHYSICAL(xfb[0]), (unsigned)MEM_VIRTUAL_TO_PHYSICAL(xfb[1]));
+    log_image("safe mode at boot:", &safe_img);
 
     gx_init();
     GX_SetDrawDoneCallback(on_drawdone);

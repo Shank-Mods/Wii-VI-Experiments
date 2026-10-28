@@ -88,8 +88,13 @@ field are at most 1023. In interlaced modes the framebuffer fetch stride must fi
   interrupt), framebuffer fetch (PICCONF, scaler off, field base addresses), clock select,
   and the VI PLL (`0x1C4` byte 1 = multiplier, `0x1C8` bits 20-23 = divider). `0x1C4` byte 2
   is never written.
-- Clock changes happen with the VI disabled: VI off, PLL written, 50 ms to relock, timing
-  loaded, VI on. Returning to the menu does the same in reverse.
+- Every switch (into a mode or back to the menu) is the same fixed sequence: VI off, VI
+  reset, PLL written, 50 ms to relock, a complete register image written, VI on. The menu's
+  image is the one libogc set up at boot, captured once. So a mode comes up identically no
+  matter which mode ran before it.
+- After each switch the registers are read back and any difference is logged
+  (`VERIFY ... wrote X read Y`), and the full register image is logged too, so two attempts
+  at the same mode can be diffed.
 - No wait can hang: retrace waits and GPU completion both time out (and log it).
 - libogc is left configured for the safe mode the whole time. Going back runs
   `VIDEO_Configure(safe)` plus `VIDEO_Flush`, which rewrites every register touched here, and
