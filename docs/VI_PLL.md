@@ -210,6 +210,31 @@ grayscale (chroma-neutral) test is the decisive discriminator and is the current
 
 ---
 
+## 7a. Refined decode of HW_0x1C4 (hypothesis, fits all data)
+
+The Hollywood **system** PLL (`HW_PLLSYS`, `0x1B0`) is documented in community overclocking
+work (mini/WiiOverclock `inc/clock.h`) as `CLKR` (reference divider) in bits 0-5, `CLKF`
+(feedback multiplier) in bits 6-17 and `CLKO` (output divider) in bits 18-26. Reading the VI
+PLL at `0x1C4` with the same layout explains every result above:
+
+- `CLKF = 4*byte1 + byte0[7:6]`. Stock `0x002006C0` gives CLKF = 27. Our "Nfb = byte1+1" is
+  just `(CLKF+1)/4` with the low two bits left at 3.
+- byte0 bits 6-7 (the "fine trim") are the low bits of CLKF; byte0 bits 0-5 are CLKR, which
+  is why `0xC1` halved the clock and `0xC2` divided it by three.
+- byte2 bit 16 is **inside CLKF** (CLKF bit 10). Writing byte2 `0x20`->`0x21` added 1024 to
+  the multiplier, which is why it hard-hung the console rather than a "shared clock".
+- byte2 `0x20` puts 8 in bits 18-26 (CLKO), which does not appear in the VI clock.
+
+Fitted law (matches every measurement in runs 1-3, including the byte0 trim points
+48.21 / 50.14 / 52.07 MHz exactly):
+
+### **F = 27 MHz x (CLKF + 1) / ((CLKR + 1) x 2V)**
+
+With byte0 left at `0xC0` this reduces to F = 54 x Nfb / V. CLKF gives about 1.93 MHz steps at
+V = 7, so finer clocks than the byte1 steps are available by also setting byte0 bits 6-7.
+
+---
+
 ## 8. Safety
 
 - **Never write `0x1C4` byte2 to anything but `0x20`** — `0x21` hard-hangs the console.
@@ -227,6 +252,6 @@ grayscale (chroma-neutral) test is the decisive discriminator and is the current
 2. Trim vertical blanking to land exactly 750 lines / 60.00 Hz.
 3. Characterise `0x1C4` byte0 (output divider) encoding fully, and `0x1C8` bits 24–27.
 4. Confirm the law on other consoles (GameCube-mode Wii, PAL, vWii, board revisions).
-5. Identify whether the `0x1C4`/`0x1C8` PLL is shared with any other block (byte2 hang
-   suggests at least one adjacent field is), to bound the risk envelope.
+5. Confirm the CLKF/CLKR reading of `0x1C4` (section 7a) and what CLKO (bits 18-26) drives.
 6. 720p scanout from a real framebuffer (XFB width/stride, scaler) for an actual picture.
+   `tools/vimodetest` now programs full timing sets for 240p..1080i/720p and 120 Hz modes.

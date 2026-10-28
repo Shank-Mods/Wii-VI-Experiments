@@ -38,6 +38,7 @@ USB drive. All touched registers reset on power cycle.
 | **vi720test** | Sets 74.25 MHz, programs a 720p-rate raster, draws a test pattern, and measures the real line/field/total-lines. Colour-diagnostic patterns (grayscale / primaries / fine). |
 | **chromatest** | YUV 4:2:2 torture test with brute-force pixel-doubling (240p/480i/480p standard + 240p/480i X2 at 1280). |
 | **chromatest480** | 480p-only variant: standard 480p vs a double-horizontal 480p that outputs **1440 wide at ~108 MHz** (PLL Nfb=14), duplicating each pixel so its colour fills a full 4:2:2 pair. |
+| **vimodetest** | Menu-driven mode tester: 24 modes (240p/480i/480p, double-wide chroma, 1440-wide, 960i, 1080i, 720p/720i, 120 Hz variants) programmed directly into the VI and PLL, with test patterns, on-screen measured line/field rates and a USB log. START returns to the safe mode. |
 
 ## Build
 
