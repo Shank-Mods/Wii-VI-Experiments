@@ -17,16 +17,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build all tools
+        shell: bash
         run: |
-          set -eux
+          set -u
           powerpc-eabi-gcc --version | head -1
+          fail=0
           for d in vi_probe vi_pll vi720test chromatest chromatest480 vimodetest; do
-            if [ -f "tools/$d/Makefile" ]; then
-              echo "=== $d ==="
-              make -C "tools/$d"
-              ls -l "tools/$d/boot.dol"
+            [ -f "tools/$d/Makefile" ] || continue
+            echo "=== $d ==="
+            if make -C "tools/$d" > "build-$d.log" 2>&1; then
+              cat "build-$d.log"; ls -l "tools/$d/boot.dol"
+            else
+              fail=1
+              cat "build-$d.log"
+              # surface compiler/linker errors as annotations (readable without the log)
+              grep -E "error|undefined reference|Error [0-9]" "build-$d.log" | head -40 |
+                while IFS= read -r l; do echo "::error title=$d::$l"; done
             fi
           done
+          exit $fail
       - name: Stage dols
         run: |
           set -eux
