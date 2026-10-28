@@ -15,7 +15,14 @@ safe mode from any point.
 Each mode's actual line rate, field rate and frame line count are measured when you enter
 it (against the CPU timebase, so this works even if the display doesn't sync) and shown in
 the overlay. The menu's detail line shows them too. Everything is also logged, along with
-every register value written, to `vimodetest.txt` on the USB drive (or SD).
+every register value written, to `vimodetest.txt` on the USB drive (or SD). The log is
+appended to, never cleared, and each line is written and closed immediately, so after a
+lockup the last line shows how far it got.
+
+The disc-slot LED blinks about twice a second while the app is running. If the picture
+freezes or drops out and the LED **keeps blinking**, the Wii is fine and the display chain
+(e.g. a GCVideo board) has lost or wedged on the signal; press START / HOME to go back. If
+the LED **stops**, the console itself hung.
 
 ## Modes
 
@@ -80,6 +87,9 @@ field are at most 1023. In interlaced modes the framebuffer fetch stride must fi
   interrupt), framebuffer fetch (PICCONF, scaler off, field base addresses), clock select,
   and the VI PLL (`0x1C4` byte 1 = multiplier, `0x1C8` bits 20-23 = divider). `0x1C4` byte 2
   is never written.
+- Clock changes happen with the VI disabled: VI off, PLL written, 50 ms to relock, timing
+  loaded, VI on. Returning to the menu does the same in reverse.
+- No wait can hang: retrace waits and GPU completion both time out (and log it).
 - libogc is left configured for the safe mode the whole time. Going back runs
   `VIDEO_Configure(safe)` plus `VIDEO_Flush`, which rewrites every register touched here, and
   the PLL is restored to its boot value first.

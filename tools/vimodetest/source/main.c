@@ -181,28 +181,45 @@ typedef struct { bool valid; u32 line_hz, field_mhz, maxline; } Meas;
 static Meas last_meas[NMODES];
 
 static void on_retrace(u32 c) { (void)c; retraces++; }
-static void tb_delay_ms(u32 ms) { u64 to = gettime() + millisecs_to_ticks(ms); while (gettime() < to) {} }
+
+// Heartbeat: blink the disc-slot LED (HW_GPIOB_OUT bit 5) about twice a second from the main
+// thread. If the picture goes black but the LED keeps blinking, the Wii is fine and the
+// display chain is what stopped; if the LED freezes, the Wii itself hung.
+#define GPIOB_OUT (*(volatile u32 *)0xCD0000C0)
+static u64 hb_last;
+static void heartbeat(void)
+{
+    u64 now = gettime();
+    if (now - hb_last >= millisecs_to_ticks(250)) { GPIOB_OUT ^= 0x20; hb_last = now; }
+}
+
+static void tb_delay_ms(u32 ms)
+{
+    u64 to = gettime() + millisecs_to_ticks(ms);
+    while (gettime() < to) heartbeat();
+}
+// Waits for the next VI interrupt, but never longer than ms (returns false on timeout).
 static bool wait_retrace(u32 ms)
 {
     u32 r = retraces; u64 to = gettime() + millisecs_to_ticks(ms);
-    while (retraces == r && gettime() < to) {}
+    while (retraces == r && gettime() < to) heartbeat();
     return retraces != r;
 }
 static u32 dpv(void) { return VI[0x2C / 2] & 0x7FF; }
 
 // ======================================================================= logging
+// Appends (never truncates), one open/close per line, so the file survives a hang and a
+// relaunch: the last line written before a lockup shows what the app was doing.
 static void logf_(const char *fmt, ...)
 {
     if (!fat_ok) return;
     static const char *const paths[] = { "usb:/vimodetest.txt", "sd:/vimodetest.txt" };
-    static bool first = true;
     char line[320];
     va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof(line), fmt, ap); va_end(ap);
     for (int i = 0; i < 2; i++) {
-        FILE *f = fopen(paths[i], first ? "w" : "a");
+        FILE *f = fopen(paths[i], "a");
         if (f) { fputs(line, f); fputc('\n', f); fclose(f); }
     }
-    first = false;
 }
 
 // ======================================================================= VI programming
@@ -246,12 +263,24 @@ static void program_vi(const Calc *c, void *fb)
           (wpl << 8) | std, 0x1000 | (c->N / 2 + 1), ((c->N & 1) ? c->HLW : 0) + 1,
           k->viclk, (unsigned)p4, (unsigned)p8);
 
+    // 1. Stop the VI (no scanout, no framebuffer reads) before touching its clock: the PLL
+    //    briefly runs unlocked after CLKF changes, and the VI should not be fetching from
+    //    memory on a glitching clock.
     u32 l; _CPU_ISR_Disable(l);
+    VI[0x02 / 2] = VI[0x02 / 2] & ~0x0001;
+    _CPU_ISR_Restore(l);
+    tb_delay_ms(2);
+    // 2. Reprogram the PLL and let it relock while the VI is idle.
+    bool pll_change = (HW(0x1C4) & 0x7FFFFFFFu) != p4 || HW(0x1C8) != p8;
+    _CPU_ISR_Disable(l);
     HW(0x1C4) = p4;
     HW(0x1C8) = p8;
+    _CPU_ISR_Restore(l);
+    if (pll_change) tb_delay_ms(50);
+    // 3. Load the new timing, then enable (DCR last).
+    _CPU_ISR_Disable(l);
     VI[0x6C / 2] = k->viclk;
     VI[0x00 / 2] = (u16)((v->acv << 4) | v->equ);
-    VI[0x02 / 2] = dcr;
     VI[0x04 / 2] = (u16)((c->hcs << 8) | c->hce);
     VI[0x06 / 2] = c->HLW;
     VI[0x08 / 2] = (u16)(((c->HBE >> 9) & 1) | (c->HBS << 1));
@@ -267,20 +296,35 @@ static void program_vi(const Calc *c, void *fb)
     VI[0x32 / 2] = (u16)(((c->N & 1) ? c->HLW : 0) + 1);
     VI[0x48 / 2] = (u16)((wpl << 8) | std);
     VI[0x4A / 2] = 0x0100;      // horizontal scaler off: 1 fetched pixel per output pixel
+    VI[0x02 / 2] = dcr;         // enable last
     _CPU_ISR_Restore(l);
 }
 
 static void restore_safe(void)
 {
+    // Same order as entering a mode: VI off, clock back to boot, settle, VI on, then let
+    // libogc rewrite every timing register for the safe mode at the next retrace.
     u32 l; _CPU_ISR_Disable(l);
+    u16 dcr = VI[0x02 / 2];
+    VI[0x02 / 2] = dcr & ~0x0001;
+    _CPU_ISR_Restore(l);
+    tb_delay_ms(2);
+    bool pll_change = (HW(0x1C4) & 0x7FFFFFFFu) != boot1c4 || HW(0x1C8) != boot1c8;
+    _CPU_ISR_Disable(l);
     HW(0x1C4) = boot1c4;
     HW(0x1C8) = boot1c8;
     _CPU_ISR_Restore(l);
-    VIDEO_Configure(safe);      // marks every timing register for rewrite
+    if (pll_change) tb_delay_ms(50);
+    _CPU_ISR_Disable(l);
+    VI[0x02 / 2] = dcr | 0x0001;   // custom timing at the stock clock, just until the flush
+    _CPU_ISR_Restore(l);
+    VIDEO_Configure(safe);         // marks every timing register for rewrite
     VIDEO_SetNextFramebuffer(menu_xfb);
     VIDEO_SetBlack(false);
     VIDEO_Flush();
-    for (int i = 0; i < 4; i++) wait_retrace(200);
+    int got = 0;
+    for (int i = 0; i < 4; i++) got += wait_retrace(200);
+    logf_("  returned to safe mode (%d/4 retraces seen)", got);
 }
 
 // ======================================================================= measurement
@@ -586,6 +630,28 @@ static int split(int total, int maxc, int align, int *off, int *len)
 }
 
 // Render one pass (field = -1 whole frame, or 0/1 one field) into fb.
+// GPU completion with a timeout: GX_DrawDone() waits forever if the GPU stalls, which
+// would look exactly like a console lockup. This polls a draw-done flag instead.
+static volatile bool gx_done;
+static void on_drawdone(void) { gx_done = true; }
+static u32 gpu_timeouts;
+static bool gpu_wait(const char *what)
+{
+    u64 to = gettime() + millisecs_to_ticks(500);
+    while (!gx_done && gettime() < to) heartbeat();
+    if (gx_done) return true;
+    gpu_timeouts++;
+    logf_("  GPU timeout (%s), #%lu: aborting frame", what, (unsigned long)gpu_timeouts);
+    GX_AbortFrame();
+    return false;
+}
+static void gpu_finish(const char *what)
+{
+    gx_done = false;
+    GX_SetDrawDone();
+    gpu_wait(what);
+}
+
 static void render_pass(void *fb, int field)
 {
     const Calc *c = rc;
@@ -614,7 +680,7 @@ static void render_pass(void *fb, int field)
             GX_CopyDisp((u8 *)fb + (row * c->A + xo[i]) * 2, GX_TRUE);
         }
     }
-    GX_DrawDone();
+    gpu_finish(field >= 0 ? "field pass" : "frame");
 }
 
 static void render_frame(void *fb)
@@ -688,10 +754,11 @@ static void run_mode(int idx)
 
     while (1) {
         u32 b = read_buttons();
-        if (b & BTN_BACK) break;
+        if (b & BTN_BACK) { logf_("  back pressed"); break; }
         bool redraw = false;
         if (b & BTN_NEXT) { pat = (pat + 1) % NPATS; redraw = true; }
         if (b & BTN_PREV) { pat = (pat + NPATS - 1) % NPATS; redraw = true; }
+        if (b & (BTN_NEXT | BTN_PREV)) logf_("  pattern %d", pat + 1);
         if (b & BTN_A)    { show_info = !show_info; redraw = true; }
 
         if (pat == 11) {
@@ -809,26 +876,28 @@ int main(void)
     VIDEO_SetNextFramebuffer(menu_xfb);
     VIDEO_SetBlack(false);
     VIDEO_Flush();
-    VIDEO_WaitVSync();
-    if (safe->viTVMode & VI_NON_INTERLACE) VIDEO_WaitVSync();
+    wait_retrace(200);
+    if (safe->viTVMode & VI_NON_INTERLACE) wait_retrace(200);
 
     fat_ok = fatInitDefault();
-    logf_("vimodetest build " __DATE__ " " __TIME__);
+    logf_("");
+    logf_("################ session start: vimodetest build " __DATE__ " " __TIME__);
     logf_("boot 0x1C4=%08X 0x1C8=%08X  safe viTVMode=%u %ux%u  xfb0=%08X xfb1=%08X",
           (unsigned)boot1c4, (unsigned)boot1c8, safe->viTVMode, safe->fbWidth, safe->xfbHeight,
           (unsigned)MEM_VIRTUAL_TO_PHYSICAL(xfb[0]), (unsigned)MEM_VIRTUAL_TO_PHYSICAL(xfb[1]));
 
     gx_init();
+    GX_SetDrawDoneCallback(on_drawdone);
     // clear the EFB once (copy-with-clear into a scratch area)
     GX_SetViewport(0, 0, 640, 528, 0, 1);
     GX_SetDispCopySrc(0, 0, 640, 528);
     GX_SetDispCopyDst(640, 528);
     GX_CopyDisp(xfb[1], GX_TRUE);
-    GX_DrawDone();
+    gpu_finish("init");
 
     menu_draw();
     while (1) {
-        VIDEO_WaitVSync();
+        wait_retrace(100);         // bounded: never hangs if VI interrupts stop
         u32 b = read_buttons();
         if (b & BTN_HOME) break;
         if (b & BTN_UP) menu_move(sel - 1);
@@ -842,10 +911,12 @@ int main(void)
         }
     }
 
+    logf_("exit to loader");
     u32 l; _CPU_ISR_Disable(l); HW(0x1C4) = boot1c4; HW(0x1C8) = boot1c8; _CPU_ISR_Restore(l);
     VIDEO_Configure(safe);
     VIDEO_SetBlack(true);
     VIDEO_Flush();
-    VIDEO_WaitVSync();
+    wait_retrace(200);
+    GPIOB_OUT &= ~0x20;            // slot LED off
     return 0;
 }
