@@ -2,7 +2,7 @@
 
 A Homebrew Channel app for trying non-standard Wii video modes. It boots at the console's
 normal safe mode (whatever `VIDEO_GetPreferredMode` returns: 480i, or 480p with component
-and progressive enabled) and lists 24 test modes. Pick one, then page through the test
+and progressive enabled) and lists 25 test modes. Pick one, then page through the test
 patterns. **START** (GameCube pad) or **HOME / +** (Wii Remote) returns to the list at the
 safe mode from any point.
 
@@ -57,6 +57,7 @@ the bus **P = F/2**. "Line" is the horizontal total in pixels.
 | 1280x720p | 1280x720 | **148.5** | 1650 | 45.00 | 60.00 | SMPTE 296M, Nfb 22, V 8 |
 | 960x720i 120Hz | 960x720 | **108** | 1200 | 45.00 | 119.84 | field rendered, 751 lines/frame |
 | 1280x720i 120Hz | 1280x720 | **148.5** | 1650 | 45.00 | 119.84 | field rendered |
+| 480x720p (54 MHz) | 480x720 | 54 (stock) | 600 | 45.00 | 60.00 | 720p within the stock clock: 27 MHz pixels, 750 lines/frame, sync 16, back porch 72, front porch 32 |
 
 The 4:3 1080i and 720 variants keep the same line and frame timing as their 16:9 siblings
 but use fewer, wider pixels, so the picture fills the same active time.

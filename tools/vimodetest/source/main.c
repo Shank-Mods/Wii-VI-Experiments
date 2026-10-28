@@ -70,6 +70,10 @@ static const HTim H_1080_1440 = { 1600, 1440,  32, 118, 42, 110 };
 static const HTim H_1080_1920 = { 2046, 1920,  44,  74, 54, 117 };  // HLW=1023: 10-bit limit
 static const HTim H_720_960   = { 1200,  960,  30, 160 };
 static const HTim H_720_1280  = { 1650, 1280,  40, 220 };  // SMPTE 296M
+// 720p at the stock 54 MHz clock (27 MHz pixels): 45 kHz x 750 lines leaves a 600-pixel
+// line. 296M's sync/porch proportions scaled to 600 give ~466 active; 480 with slightly
+// tighter porches (sync 16, back 72, front 32).
+static const HTim H_720_480   = {  600,  480,  16,  72, 21,  55 };
 
 static const VTim V_240P  = { 0,  526, 240,  6, 4 };  // libogc stock 240p
 static const VTim V_480I  = { 1,  525, 240,  6, 3 };  // libogc stock 480i
@@ -88,7 +92,7 @@ typedef struct {
     u8 field;   // field rendering (each field drawn as its own pass)
 } Mode;
 
-#define NMODES 24
+#define NMODES 25
 static const Mode modes[NMODES] = {
     { "240p",                        "4:3",  C27,  &H_SD,        &V_240P,  0, 0 },
     { "240p (double wide chroma)",   "4:3",  C54,  &H_SD2,       &V_240P,  1, 0 },
@@ -114,6 +118,7 @@ static const Mode modes[NMODES] = {
     { "1280x720p",                   "16:9", C148, &H_720_1280,  &V_720P,  0, 0 },
     { "960x720i 120Hz",              "4:3",  C108, &H_720_960,   &V_720I,  0, 1 },
     { "1280x720i 120Hz",             "16:9", C148, &H_720_1280,  &V_720I,  0, 1 },
+    { "480x720p (54 MHz)",           "16:9", C54,  &H_720_480,   &V_720P,  0, 0 },
 };
 static const char *group_name[6] = { "240p", "480i", "480p", "960i", "1080i", "720p / 720i" };
 
@@ -794,6 +799,7 @@ static int sel = 0;
 static void menu_pos(int i, int *row, int *col)
 {
     if (i >= NMODES) { *row = 20; *col = 2; return; }
+    if (i == 24) { *row = 19; *col = 41; return; }   // 5th entry under 720p / 720i
     int column = i / 12, j = i % 12, g = j / 4, k = j % 4;
     *row = 4 + g * 5 + 1 + k;
     *col = column ? 41 : 2;
@@ -902,8 +908,8 @@ int main(void)
         if (b & BTN_HOME) break;
         if (b & BTN_UP) menu_move(sel - 1);
         if (b & BTN_DOWN) menu_move(sel + 1);
-        if (b & BTN_LEFT) menu_move(sel >= 12 && sel < NMODES ? sel - 12 : sel);
-        if (b & BTN_RIGHT) menu_move(sel < 12 ? sel + 12 : sel);
+        if (b & BTN_LEFT) menu_move(sel >= 12 && sel < 24 ? sel - 12 : sel);
+        if (b & BTN_RIGHT) menu_move(sel < 12 ? sel + 12 : sel == NMODES ? 24 : sel);
         if (b & BTN_A) {
             if (sel >= NMODES) break;
             run_mode(sel);
