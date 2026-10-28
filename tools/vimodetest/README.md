@@ -19,7 +19,8 @@ every register value written, to `vimodetest.txt` on the USB drive (or SD).
 
 ## Modes
 
-All timings are computed from published standards (BT.601/1358, SMPTE 274M/296M) and the VI
+All timings are computed from published standards (BT.601/1358, SMPTE 274M/296M), checked
+against Swiss's hardware-tested 960i and 1080i60 tables (see Credits), and the VI
 PLL law in [`docs/VI_PLL.md`](../../docs/VI_PLL.md): **F = 54 MHz x Nfb / V**, pixel rate on
 the bus **P = F/2**. "Line" is the horizontal total in pixels.
 
@@ -37,11 +38,11 @@ the bus **P = F/2**. "Line" is the horizontal total in pixels.
 | 480p (double wide chroma) | 1440x480 | **108** | 1716 | 31.47 | 59.94 | Nfb 14, V 7 |
 | 1440x480p | 1440x480 | **108** | 1716 | 31.47 | 59.94 | |
 | 480p 120Hz | 720x480 | **108** | 858 | 62.94 | 119.88 | |
-| 720x960i | 720x960 | 54 | 858 | 31.47 | 60.00 | field rendered, 1049 lines/frame |
+| 720x960i | 720x960 | 54 | 858 | 31.47 | 60.00 | field rendered, 1049 lines/frame (Swiss's 960i timing) |
 | 720x960i (double wide chroma) | 1440x960 | **108** | 1716 | 31.47 | 60.00 | field rendered |
 | 1280x960i | 1280x960 | **96** | 1526 | 31.45 | 59.97 | field rendered, Nfb 16, V 9 |
 | 720x960i 120Hz | 720x960 | **108** | 858 | 62.94 | 119.99 | field rendered |
-| 720x1080i | 720x1080 | 54 | 800 | 33.75 | 60.00 | field rendered, 1125 lines/frame |
+| 720x1080i | 720x1080 | 54 | 800 | 33.75 | 60.00 | field rendered, 1125 lines/frame (Swiss's 1080i60 timing) |
 | 1440x1080i | 1440x1080 | **108** | 1600 | 33.75 | 60.00 | field rendered |
 | 1920x1080i | 1920x1080 | **138** | 2046 | 33.72 | 59.95 | field rendered, Nfb 23, V 9 |
 | 720x1080i 120Hz | 720x1080 | **108** | 800 | 67.50 | 120.00 | field rendered |
@@ -95,3 +96,14 @@ field rate, and `DPV` (the beam counter's maximum, which equals the lines in two
 Together with what the display shows (sync, geometry, color), that's enough to correct a mode.
 If the motion pattern looks combed in a field-rendered mode, the field order is reversed;
 that's a one-line fix.
+
+## Credits
+
+The 960i and 1080i timings follow the video mode tables in
+[Swiss](https://github.com/emukidid/swiss-gc) by emu_kidid, Extrems and contributors. Swiss's
+960i uses the 480p line with a 1049-half-line interlaced frame; its 1080i60 is 720 active
+pixels in an 800-clock line at the stock 27 MHz pixel rate, with a 16-clock sync, an
+active window of 75 to 795, a 2.5-line vsync and 29/30 + 1/0 half-lines of vertical
+blanking. That matches SMPTE 274M's sync and back-porch durations more closely than the
+first version of this tool did, so the 1080i modes here use it, scaled for the 1440 and 1920 variants. Only
+timing values were taken; no Swiss code is included.

@@ -52,25 +52,30 @@ static const Clock clocks[] = {
 };
 
 // ======================================================================= timings
-// Horizontal, in pixel clocks: total, active, hsync width, back porch (active start = S+BP).
-typedef struct { u16 T, A, S, BP; } HTim;
-// Vertical: interlaced?, half-lines per field (N), active lines per field, EQU, PSB (odd field).
-typedef struct { u8 il; u16 N, acv; u8 equ; u16 psb; } VTim;
+// Horizontal, in pixel clocks: total, active, hsync width, back porch (active start = S+BP),
+// and optionally the colour-burst window (0 = libogc's 71/105, clipped into the blanking).
+typedef struct { u16 T, A, S, BP; u8 hcs, hce; } HTim;
+// Vertical: interlaced?, half-lines per field (N), active lines per field, EQU (vsync length
+// in half-lines), PSB of the odd field, and optionally the burst-blanking start/end of the odd
+// field (0 = derived from EQU and N, which reproduces libogc's stock tables).
+typedef struct { u8 il; u16 N, acv; u8 equ; u16 psb; u16 bs, be; } VTim;
 
 static const HTim H_SD        = {  858,  720,  64,  58 };  // BT.601 / BT.1358
 static const HTim H_SD2       = { 1716, 1440, 124, 120 };  // the above at twice the clock
 static const HTim H_1280_960  = { 1526, 1280, 112, 104 };
-static const HTim H_1080_720  = {  800,  720,  32,  32 };
-static const HTim H_1080_1440 = { 1600, 1440,  64,  64 };
-static const HTim H_1080_1920 = { 2046, 1920,  44,  60 };  // HLW=1023: 10-bit field limit
+// 1080i family: Swiss's 1080i60 horizontal (16-clock sync, picture 75..795 of 800), which
+// matches SMPTE 274M's sync and back-porch durations; scaled for the wider variants.
+static const HTim H_1080_720  = {  800,  720,  16,  59, 21,  55 };
+static const HTim H_1080_1440 = { 1600, 1440,  32, 118, 42, 110 };
+static const HTim H_1080_1920 = { 2046, 1920,  44,  74, 54, 117 };  // HLW=1023: 10-bit limit
 static const HTim H_720_960   = { 1200,  960,  30, 160 };
 static const HTim H_720_1280  = { 1650, 1280,  40, 220 };  // SMPTE 296M
 
 static const VTim V_240P  = { 0,  526, 240,  6, 4 };  // libogc stock 240p
 static const VTim V_480I  = { 1,  525, 240,  6, 3 };  // libogc stock 480i
 static const VTim V_480P  = { 0, 1050, 480, 12, 6 };  // libogc stock 480p (BT.1358)
-static const VTim V_960I  = { 1, 1049, 480, 12, 6 };  // 31 kHz interlaced, 1049 lines/frame
-static const VTim V_1080I = { 1, 1125, 540, 10, 3 };  // SMPTE 274M line count
+static const VTim V_960I  = { 1, 1049, 480, 12, 5 };  // Swiss 960i: prb 48/49, psb 5/4
+static const VTim V_1080I = { 1, 1125, 540,  5, 1, 40, 1120 };  // Swiss 1080i60
 static const VTim V_720P  = { 0, 1500, 720, 10, 2 };  // SMPTE 296M line count
 static const VTim V_720I  = { 1,  751, 360,  6, 3 };  // 720 lines interlaced, 751/frame
 
@@ -141,19 +146,19 @@ static void calc_mode(const Mode *m, Calc *c)
     c->HSY = h->S;
     c->HBE = h->S + h->BP;
     c->HBS = c->HBE + h->A - c->HLW;
-    // colour-burst window (only used by the analog encoder); libogc stock values, kept
-    // inside the blanking interval
-    c->hce = 105; c->hcs = 71;
+    // colour-burst window (only used by the analog encoder), kept inside the blanking
+    c->hcs = h->hcs ? h->hcs : 71;
+    c->hce = h->hce ? h->hce : 105;
     if (c->hce >= c->HBE) c->hce = c->HBE - 1;
     if (c->hcs >= c->hce) c->hcs = c->hce - 1;
     c->psbO = v->psb;
     c->prbO = v->N - 3 * v->equ - 2 * v->acv - v->psb;
     c->prbE = c->prbO + v->il;
     c->psbE = c->psbO - v->il;
-    c->bsO = 2 * v->equ;
-    c->bsE = 2 * v->equ + v->il;
-    c->beO = v->N - v->equ + v->il;
-    c->beE = v->N - v->equ;
+    c->bsO = v->bs ? v->bs : 2 * v->equ;
+    c->bsE = c->bsO + v->il;
+    c->beO = v->be ? v->be : v->N - v->equ + v->il;
+    c->beE = c->beO - v->il;
     u32 p_hz = clocks[m->clk].khz * 500u;            // F/2 in Hz
     c->exp_line_hz = p_hz / h->T;
     c->exp_field_mhz = (u32)((u64)c->exp_line_hz * 2000ull / v->N);
