@@ -23,12 +23,15 @@
 // Requires <ahb_access/> (meta.xml) for the PLL writes.
 
 #include <gccore.h>
+#include <fat.h>
 #include <wiiuse/wpad.h>
 #include <ogc/pad.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <malloc.h>
 #include <ogc/machine/processor.h>
+#include <ogc/lwp_watchdog.h>
 
 #define VI ((volatile u16 *)0xCC002000)
 #define HW(off) (*(volatile u32 *)(0xCD800000 + (off)))
@@ -45,6 +48,69 @@ static void *xfb;
 static GXRModeObj rmode;
 static u8 gpfifo[256 * 1024] __attribute__((aligned(32)));
 
+// ---- measurement + logging (so we capture the Wii's real timing even when GCVideo
+//      cannot display it, e.g. the 108 MHz X2 mode may not reach the monitor) ----
+static volatile u32 retraces;
+static void on_retrace(u32 c) { (void)c; retraces++; }
+static void tb_delay_ms(u32 ms) { u64 to = gettime() + millisecs_to_ticks(ms); while (gettime() < to) {} }
+static u32 cur_line(void) { return VI[0x2C / 2] & 0x7FF; }
+
+static void logf_(const char *fmt, ...)
+{
+    static const char *const paths[] = { "usb:/chroma480.txt", "sd:/chroma480.txt" };
+    static bool first = true;
+    char line[256]; va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof(line), fmt, ap); va_end(ap);
+    for (int i = 0; i < 2; i++) { FILE *f = fopen(paths[i], first ? "w" : "a");
+        if (f) { fputs(line, f); fputc('\n', f); fflush(f); fclose(f); } }
+    first = false;
+}
+
+static bool wait_cross(u32 t, u64 tk, u32 *ml)
+{
+    u64 to = gettime() + tk; u32 l;
+    while ((l = cur_line()) >= t) { if (l > *ml) *ml = l; if (gettime() > to) return false; }
+    while ((l = cur_line()) <  t) { if (l > *ml) *ml = l; if (gettime() > to) return false; }
+    return true;
+}
+
+// Measure line rate / field rate / total lines against the CPU timebase and log them.
+static void measure_log(const char *tag)
+{
+    u32 hlw = VI[0x06 / 2] & 0x3FF;
+    // field rate (bounded)
+    u32 r0 = retraces; u64 fto = gettime() + millisecs_to_ticks(400);
+    while (retraces == r0 && gettime() < fto) {}
+    u32 field_milli = 0; bool field_ok = false;
+    if (retraces != r0) {
+        u32 r1 = retraces; u64 t1 = gettime(); u64 win = gettime() + millisecs_to_ticks(1500);
+        while ((retraces - r1) < 90 && gettime() < win) {}
+        u64 t2 = gettime(); u32 g = retraces - r1;
+        if (g >= 2) { u64 us = ticks_to_microsecs(t2 - t1);
+            if (us) { field_ok = true; field_milli = (u32)((u64)g * 1000000000ull / us); } }
+    }
+    // line period (best of 6, bounded)
+    u64 best = ~0ull; u32 maxline = 0;
+    for (int k = 0; k < 6; k++) {
+        u32 ml = maxline; u64 sto = gettime() + millisecs_to_ticks(40); u32 l;
+        while ((l = cur_line()) > 10) { if (l > ml) ml = l; if (gettime() > sto) break; }
+        bool a = wait_cross(40, millisecs_to_ticks(40), &ml); u64 ta = gettime();
+        bool b = wait_cross(200, millisecs_to_ticks(40), &ml); u64 tb = gettime();
+        maxline = ml; if (a && b && tb > ta && (tb - ta) < best) best = tb - ta;
+    }
+    if (best != ~0ull) {
+        u32 line_ns = (u32)(ticks_to_nanosecs(best) / 160);
+        u32 eff = line_ns ? (u32)(4ull * hlw * 1000000ull / line_ns) : 0; // = 2*(2*hlw/line)
+        u32 lk = line_ns ? (u32)(1000000000ull / line_ns) : 0;
+        logf_("[%s] line=%u ns (~%u.%02u kHz) hlw=%u eff~%u kHz field=%s%u.%03u Hz maxline=%u lines=%u 0x1C4=%08X 0x1C8=%08X",
+              tag, line_ns, lk / 1000, (lk % 1000) / 10, hlw, eff,
+              field_ok ? "" : "NO/", field_milli / 1000, field_milli % 1000,
+              maxline, (maxline + 1) / 2, (unsigned)HW(0x1C4), (unsigned)HW(0x1C8));
+    } else {
+        logf_("[%s] NO LINE LOCK (beam counter stalled) maxline=%u field=%u.%03u Hz 0x1C4=%08X 0x1C8=%08X",
+              tag, maxline, field_milli / 1000, field_milli % 1000, (unsigned)HW(0x1C4), (unsigned)HW(0x1C8));
+    }
+}
+
 static int mode_idx = 0;
 static int pat_idx = 0;
 #define NUM_MODES 2
@@ -54,6 +120,7 @@ static bool have_component;
 static u32 pll_boot_1c4, pll_boot_1c8;     // snapshot to restore
 static bool cur_doubled;
 static int  cur_logw;                      // logical source width (640 STD, 720 X2)
+static const char *mode_label[NUM_MODES] = { "480P STD", "480P X2" };
 
 // ------------------------------------------------------------------ tile layout
 // Each mode is drawn as 1..3 EFB tiles (<=640 wide) copied side by side into the XFB.
@@ -117,6 +184,11 @@ static void apply_mode(int idx)
     VIDEO_WaitVSync();
     VIDEO_SetBlack(false);
     VIDEO_Flush();
+
+    // Capture the Wii's real timing for this mode (independent of whether GCVideo/the
+    // monitor can display it). ~1-2 s pause on each mode switch.
+    tb_delay_ms(200);
+    measure_log(mode_label[idx]);
 }
 
 // ------------------------------------------------------------------ GX helpers
@@ -198,7 +270,6 @@ static void draw_text(const char *str, float x, float y, float s)
         x += 9 * s;
     }
 }
-static const char *mode_label[NUM_MODES] = { "480P STD", "480P X2" };
 
 // ------------------------------------------------------------------ patterns
 // Physical pixel (tileBase+ex) maps to logical source pixel lx; in doubled mode lx halves,
@@ -309,10 +380,15 @@ int main(void)
     VIDEO_Init();
     WPAD_Init();
     PAD_Init();
+    VIDEO_SetPostRetraceCallback(on_retrace);
     have_component = VIDEO_HaveComponentCable();
 
     pll_boot_1c4 = HW(0x1C4);
     pll_boot_1c8 = HW(0x1C8);
+
+    bool fat = fatInitDefault();
+    logf_("chromatest480 build " __DATE__ " " __TIME__ "  fat=%d component=%d boot 0x1C4=%08X 0x1C8=%08X",
+          fat, have_component, (unsigned)pll_boot_1c4, (unsigned)pll_boot_1c8);
 
     xfb = MEM_K0_TO_K1(memalign(32, MAX_XFB_W * MAX_XFB_H * 2));
     apply_mode(mode_idx);
@@ -336,6 +412,7 @@ int main(void)
     }
 
     // restore clock and a safe display before returning to the loader
+    logf_("exit; restoring PLL to boot");
     pll_restore();
     GXRModeObj *safe = VIDEO_GetPreferredMode(NULL);
     VIDEO_Configure(safe);

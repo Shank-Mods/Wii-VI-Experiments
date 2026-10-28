@@ -7,7 +7,7 @@ BUILD    := build
 SOURCES  := source
 CFLAGS   = -g -O2 -Wall $(MACHDEP) $(INCLUDE)
 LDFLAGS  = -g $(MACHDEP) -Wl,-Map,$(notdir $@).map
-LIBS     := -lwiiuse -lbte -logc -lm
+LIBS     := -lfat -lwiiuse -lbte -logc -lm
 LIBDIRS  := $(DEVKITPRO)/libogc
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 export OUTPUT := $(CURDIR)/$(TARGET)
