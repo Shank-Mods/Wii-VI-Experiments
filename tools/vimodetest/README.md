@@ -65,7 +65,7 @@ but use fewer, wider pixels, so the picture fills the same active time.
 Limits these were designed around: the half-line width register (HLW) is 10 bits, so a line
 can be at most 2046 pixels. That is why 1920x1080i uses a 2046-pixel line (126 pixels of
 blanking, tighter than the 280 in the broadcast standard) instead of 2200. Active lines per
-field are at most 1023. In interlaced modes the framebuffer fetch stride must fit 8 bits of
+field are at most 1023, and a whole field (active plus blanking) must stay within about 2047 half-lines (see docs/VI_PLL.md 7c). In interlaced modes the framebuffer fetch stride must fit 8 bits of
 16-pixel units, so 1920 wide is the maximum.
 
 ## Patterns

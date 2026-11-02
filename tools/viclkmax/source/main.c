@@ -548,11 +548,11 @@ static const Target targets[] = {
     { "1280x720p60",               1650,  750,  720, false, 60 },
     { "1920x1080i60 (2046 line)",  2046, 1125,  540, true,  30 },
     { "1280x960p60",               1800, 1000,  960, false, 60 },
-    { "1920x1020p60 (tallest p)",  2046, 1060, 1020, false, 60 },
-    { "1920x2040i60 (tallest i)",  2046, 2100, 1020, true,  30 },
+    { "1920x980p60 (tallest p)",   2046, 1020,  980, false, 60 },
+    { "1920x1960i60 (tallest i)",  2046, 2045,  980, true,  30 },
     { "1920x1080i120 (2046 line)", 2046, 1125,  540, true,  60 },
     { "1280x720p120",              1650,  750,  720, false, 120 },
-    { "1920x1020p120",             2046, 1060, 1020, false, 120 },
+    { "1920x980p120",              2046, 1020,  980, false, 120 },
     { "1920x1080i60 (2200 line)",  2200, 1125,  540, true,  30 },
     { "1920x1080p60",              2200, 1125, 1080, false, 60 },
 };
@@ -587,7 +587,9 @@ static void show_summary(int state)
     for (u32 i = 0; i < sizeof(targets) / sizeof(targets[0]); i++) {
         const Target *t = &targets[i];
         double need = 2.0 * t->T * t->lines * t->rate / 1e6;      // F = 2 x pixel rate
-        bool regs_ok = t->T <= 2046 && t->acv <= 1023;
+        // vilinetest run 1: fields longer than ~2047 half-lines don't run as programmed
+        u32 field_hl = t->il ? t->lines : 2u * t->lines;
+        bool regs_ok = t->T <= 2046 && t->acv <= 1023 && field_hl <= 2047;
         bool clk_ok = need <= best + 1e-6;
         scr_line(row++, "  %-26s %7.1f    %s   %s", t->name, need,
                  regs_ok ? "\x1b[32m  fits  \x1b[37m" : "\x1b[31mtoo big \x1b[37m",
@@ -595,7 +597,7 @@ static void show_summary(int state)
         logf_("  %-26s needs F %.1f MHz  registers %s  clock %s", t->name, need,
               regs_ok ? "fit" : "too big", clk_ok ? "OK" : "too fast");
     }
-    scr_line(row + 1, "Register limits: line <= 2046 clocks, <= 1023 active lines per field.");
+    scr_line(row + 1, "Limits: line <= 2046 clocks, field <= 2047 half-lines incl. blanking.");
     scr_line(row + 2, "Whether the VI's memory fetch keeps up needs a display that can show it.");
 }
 

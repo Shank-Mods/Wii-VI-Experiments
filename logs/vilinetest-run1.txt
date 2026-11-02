@@ -1,0 +1,135 @@
+
+################ vilinetest session start, build Nov  2 2026 10:56:15
+boot 0x1C4=002006C0 0x1C8=D870700E  safe viTVMode=22
+
+=== Part 1: register bit readback (VI stopped; write FFFF then 0000, read each)
+  00 VTR   EQU 0-3, ACV 4-13    wrote FFFF read 3FFF, wrote 0000 read 0000
+  04 HTR0h HCE 0-6, HCS 8-14    wrote FFFF read 7F7F, wrote 0000 read 0000
+  06 HTR0l HLW 0-9              wrote FFFF read 03FF, wrote 0000 read 0000
+  08 HTR1h HBE b9, HBS 1-10     wrote FFFF read 07FF, wrote 0000 read 0000
+  0A HTR1l HSY 0-6, HBE 7-15    wrote FFFF read FFFF, wrote 0000 read 0000
+  0C VTO   PSB odd              wrote FFFF read 03FF, wrote 0000 read 0000
+  0E VTO   PRB odd              wrote FFFF read 03FF, wrote 0000 read 0000
+  10 VTE   PSB even             wrote FFFF read 03FF, wrote 0000 read 0000
+  12 VTE   PRB even             wrote FFFF read 03FF, wrote 0000 read 0000
+  14 BBEI                       wrote FFFF read FFFF, wrote 0000 read 0000
+  16 BBEI                       wrote FFFF read FFFF, wrote 0000 read 0000
+  18 BBOI                       wrote FFFF read FFFF, wrote 0000 read 0000
+  1A BBOI                       wrote FFFF read FFFF, wrote 0000 read 0000
+  1C TFBL hi                    wrote FFFF read 1FFF, wrote 0000 read 0000
+  1E TFBL lo                    wrote FFFF read FFFF, wrote 0000 read 0000
+  20 TFBR hi                    wrote FFFF read 00FF, wrote 0000 read 0000
+  22 TFBR lo                    wrote FFFF read FFFF, wrote 0000 read 0000
+  24 BFBL hi                    wrote FFFF read 00FF, wrote 0000 read 0000
+  26 BFBL lo                    wrote FFFF read FFFF, wrote 0000 read 0000
+  28 BFBR hi                    wrote FFFF read 00FF, wrote 0000 read 0000
+  2A BFBR lo                    wrote FFFF read FFFF, wrote 0000 read 0000
+  30 DI0 hi                     wrote FFFF read 17FF, wrote 0000 read 0000
+  32 DI0 lo                     wrote FFFF read 07FF, wrote 0000 read 0000
+  34 DI1 hi                     wrote FFFF read 17FF, wrote 0000 read 0000
+  36 DI1 lo                     wrote FFFF read 07FF, wrote 0000 read 0000
+  38 DI2 hi                     wrote FFFF read 17FF, wrote 0000 read 0000
+  3A DI2 lo                     wrote FFFF read 07FF, wrote 0000 read 0000
+  3C DI3 hi                     wrote FFFF read 17FF, wrote 0000 read 0000
+  3E DI3 lo                     wrote FFFF read 07FF, wrote 0000 read 0000
+  40 DL0 hi                     wrote FFFF read 0000, wrote 0000 read 0000
+  42 DL0 lo                     wrote FFFF read 0000, wrote 0000 read 0000
+  44 DL1 hi                     wrote FFFF read 0000, wrote 0000 read 0000
+  46 DL1 lo                     wrote FFFF read 0000, wrote 0000 read 0000
+  48 PICCONF                    wrote FFFF read 7FFF, wrote 0000 read 0000
+  4A HSR                        wrote FFFF read 11FF, wrote 0000 read 0000
+  4C FCT0                       wrote FFFF read 3FFF, wrote 0000 read 0000
+  4E FCT0                       wrote FFFF read FFFF, wrote 0000 read 0000
+  50 FCT1                       wrote FFFF read 3FFF, wrote 0000 read 0000
+  52 FCT1                       wrote FFFF read FFFF, wrote 0000 read 0000
+  54 FCT2                       wrote FFFF read 3FFF, wrote 0000 read 0000
+  56 FCT2                       wrote FFFF read FFFF, wrote 0000 read 0000
+  58 FCT3                       wrote FFFF read FFFF, wrote 0000 read 0000
+  5A FCT3                       wrote FFFF read FFFF, wrote 0000 read 0000
+  5C FCT4                       wrote FFFF read FFFF, wrote 0000 read 0000
+  5E FCT4                       wrote FFFF read FFFF, wrote 0000 read 0000
+  60 FCT5                       wrote FFFF read FFFF, wrote 0000 read 0000
+  62 FCT5                       wrote FFFF read FFFF, wrote 0000 read 0000
+  64 FCT6                       wrote FFFF read 00FF, wrote 0000 read 0000
+  66 FCT6                       wrote FFFF read FFFF, wrote 0000 read 0000
+  68 ?                          wrote FFFF read 00FF, wrote 0000 read 00FF
+  6A ?                          wrote FFFF read 00FF, wrote 0000 read 0000
+  6C VICLK                      wrote FFFF read 0001, wrote 0000 read 0000
+  70 HBE656/FBW?                wrote FFFF read 03FF, wrote 0000 read 0000
+  72 ?                          wrote FFFF read 83FF, wrote 0000 read 0000
+  74 ?                          wrote FFFF read 03FF, wrote 0000 read 0000
+  76 ?                          wrote FFFF read 00FF, wrote 0000 read 00FF
+
+B0  control: 480p raster  (54 MHz, HLW reg 01AD, VTR 1E060000, PRB/PSB odd 66/6 even 66/6)
+  moving: line 31468.6 Hz (858.0 clocks), 17 counter resets, cycle 1050.00 lines (29.970 Hz), counter top 1050, resets to 1..1, bits seen 07FF
+  frame cycle = 1050.00 lines -> as programmed
+
+B1  1000 active lines: beam counter > 2047?  (54 MHz, HLW reg 01AD, VTR 3E860000, PRB/PSB odd 66/6 even 66/6)
+  moving: line 31468.6 Hz (858.0 clocks), 17 counter resets, cycle 986.06 lines (31.914 Hz), counter top 2047, resets to 0..1, bits seen 07FF
+  frame cycle = 986.06 lines -> unexpected: 986.1 lines
+
+B2  1023 active lines (documented max)  (54 MHz, HLW reg 01AD, VTR 3FF60000, PRB/PSB odd 66/6 even 66/6)
+  moving: line 31468.6 Hz (858.0 clocks), 17 counter resets, cycle 1010.41 lines (31.144 Hz), counter top 2047, resets to 0..1, bits seen 07FF
+  frame cycle = 1010.41 lines -> unexpected: 1010.4 lines
+
+B3  VTR bit 14 set (ACV bit 10?)  (54 MHz, HLW reg 01AD, VTR 46460000, PRB/PSB odd 66/6 even 66/6)
+  moving: line 31468.6 Hz (858.0 clocks), 64 counter resets, cycle 290.00 lines (108.512 Hz), counter top 290, resets to 1..1, bits seen 01FF
+  frame cycle = 290.00 lines -> bit 14 ignored
+
+B4  VTR bit 15 set (ACV bit 11?)  (54 MHz, HLW reg 01AD, VTR 86460000, PRB/PSB odd 66/6 even 66/6)
+  moving: line 31468.6 Hz (858.0 clocks), 64 counter resets, cycle 290.00 lines (108.513 Hz), counter top 290, resets to 1..1, bits seen 01FF
+  frame cycle = 290.00 lines -> bit 15 ignored
+
+B5  PRB bit 10 set (pre-blank 1090?)  (54 MHz, HLW reg 01AD, VTR 1E060000, PRB/PSB odd 1090/6 even 1090/6)
+  moving: line 31468.6 Hz (858.0 clocks), 17 counter resets, cycle 1050.00 lines (29.970 Hz), counter top 1050, resets to 1..1, bits seen 07FF
+  frame cycle = 1050.00 lines -> PRB bit 10 ignored
+
+B6  PSB bit 10 set (post-blank 1030?)  (54 MHz, HLW reg 01AD, VTR 1E060000, PRB/PSB odd 66/1030 even 66/1030)
+  moving: line 31468.6 Hz (858.0 clocks), 17 counter resets, cycle 1050.00 lines (29.970 Hz), counter top 1050, resets to 1..1, bits seen 07FF
+  frame cycle = 1050.00 lines -> PSB bit 10 ignored
+
+B7  HLW bit 10 set (2906-clock line?)  (54 MHz, HLW reg 05AD, VTR 1E060000, PRB/PSB odd 66/6 even 66/6)
+  moving: line 31468.6 Hz (858.0 clocks), 17 counter resets, cycle 1050.00 lines (29.970 Hz), counter top 1050, resets to 1..1, bits seen 07FF
+  line length = 858.00 clocks -> HLW bit 10 ignored
+
+C0  progressive uses odd AND even blanking?  (54 MHz, HLW reg 01AD, VTR 1E060000, PRB/PSB odd 40/0 even 100/0)
+  moving: line 31468.6 Hz (858.0 clocks), 17 counter resets, cycle 1048.00 lines (30.027 Hz), counter top 1048, resets to 1..1, bits seen 07FF
+  frame cycle = 1048.00 lines -> alternates odd/even
+
+C1  EQU = 0 (no vsync) accepted?  (54 MHz, HLW reg 01AD, VTR 1E000000, PRB/PSB odd 84/6 even 84/6)
+  moving: line 31468.6 Hz (858.0 clocks), 10 counter resets, cycle 1646.40 lines (19.114 Hz), counter top 2047, resets to 0..1, bits seen 07FF
+  frame cycle = 1646.40 lines -> unexpected: 1646.4 lines
+
+C2  MERGE: 480p from two 240-line fields  (54 MHz, HLW reg 01AD, VTR 0F06 / field 2 0F00, PRB/PSB odd 60/0 even 0/12)
+  moving: line 31468.6 Hz (858.0 clocks), 13 counter resets, cycle 1232.85 lines (25.525 Hz), counter top 2047, resets to 0..1, bits seen 07FF
+  EQU switches written: 30
+  frame cycle = 1232.85 lines -> unexpected: 1232.8 lines
+
+C2c  control: same, no EQU switch  (54 MHz, HLW reg 01AD, VTR 0F060000, PRB/PSB odd 60/0 even 0/12)
+  moving: line 31468.6 Hz (858.0 clocks), 11 counter resets, cycle 1558.00 lines (20.198 Hz), counter top 1558, resets to 1..1, bits seen 07FF
+  frame cycle = 1558.00 lines -> unexpected: 1558.0 lines
+
+C3  MERGE: 1080p from two 540-line fields  (270 MHz, HLW reg 03FF, VTR 21C6 / field 2 21C0, PRB/PSB odd 40/0 even 0/32)
+  moving: line 65982.6 Hz (2046.0 clocks), 23 counter resets, cycle 1571.17 lines (41.996 Hz), counter top 2047, resets to 0..1, bits seen 07FF
+  EQU switches written: 50
+  frame cycle = 1571.17 lines -> unexpected: 1571.2 lines
+
+C3c  control: same, no EQU switch  (270 MHz, HLW reg 03FF, VTR 21C60000, PRB/PSB odd 40/0 even 0/32)
+  moving: line 65982.6 Hz (2046.0 clocks), 35 counter resets, cycle 1051.34 lines (62.760 Hz), counter top 2047, resets to 0..1, bits seen 07FF
+  frame cycle = 1051.34 lines -> unexpected: 1051.3 lines
+
+SUMMARY: VTR bits 3FFF, HLW bits 03FF, PRB bits 03FF, 0 registers with bits beyond the documented field
+  B0  control: 480p raster                       as programmed
+  B1  1000 active lines: beam counter > 2047?    unexpected: 986.1 lines
+  B2  1023 active lines (documented max)         unexpected: 1010.4 lines
+  B3  VTR bit 14 set (ACV bit 10?)               bit 14 ignored
+  B4  VTR bit 15 set (ACV bit 11?)               bit 15 ignored
+  B5  PRB bit 10 set (pre-blank 1090?)           PRB bit 10 ignored
+  B6  PSB bit 10 set (post-blank 1030?)          PSB bit 10 ignored
+  B7  HLW bit 10 set (2906-clock line?)          HLW bit 10 ignored
+  C0  progressive uses odd AND even blanking?    alternates odd/even
+  C1  EQU = 0 (no vsync) accepted?               unexpected: 1646.4 lines
+  C2  MERGE: 480p from two 240-line fields       unexpected: 1232.8 lines
+  C2c control: same, no EQU switch               unexpected: 1558.0 lines
+  C3  MERGE: 1080p from two 540-line fields      unexpected: 1571.2 lines
+  C3c control: same, no EQU switch               unexpected: 1051.3 lines

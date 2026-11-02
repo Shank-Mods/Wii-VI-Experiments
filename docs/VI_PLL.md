@@ -272,6 +272,46 @@ long before the VI is.
 
 ---
 
+## 7c. Line-count limits (vilinetest, run 1)
+
+`tools/vilinetest` read back every VI register's implemented bits and ran rasters with
+the bits above the documented fields set. Log:
+[`logs/vilinetest-run1.txt`](../logs/vilinetest-run1.txt).
+
+**No hidden bits.** Readback and measurement agree:
+
+| Register | Bits that exist | Field | Extra bit set → measured |
+| --- | --- | --- | --- |
+| VTR `0x00` | `3FFF` | EQU 4 bits, ACV 10 bits | bit 14 / 15: frame 290 lines = ignored |
+| HLW `0x06` | `03FF` | 10 bits | bit 10: line stays 858 clocks |
+| PRB/PSB `0x0C-0x12` | `03FF` | 10 bits | bit 10: ignored |
+| DI0-3 `0x30-0x3E` | `17FF` / `07FF` | 11-bit vertical and horizontal compare + enable | |
+| PICCONF `0x48` | `7FFF` | std 8 bits, **wpl 7 bits** (fetch width ≤ 2032 px) | |
+| HSR `0x4A` | `11FF` | step 9 bits + enable | |
+| DPV `0x2C` | counts in bits 0-10 only | 11-bit beam counter | |
+
+Unidentified registers `0x70` (`03FF`), `0x72` (`83FF`), `0x74` (`03FF`) are writable;
+`0x68`, `0x76` read `00FF` whatever is written.
+
+**Further limits found:**
+
+- **A field must stay within about 2047 half-lines, blanking included.** 1050 and 2000
+  half-line fields run exactly. With ACV 1000 or 1023 (2090 / 2136 half-lines) the beam
+  counter overflows and the frame timing no longer matches the program. So progressive
+  tops out at roughly 980-1000 active lines with realistic blanking, not 1023. Interlaced
+  frames top out near 2046 total lines.
+- **PRB = 0 is not zero:** it adds 2048 half-lines (control C2c measured 1558 lines,
+  exactly the programmed 534 + 1024). Use PRB ≥ 1. PSB = 0 works (C0).
+- **EQU = 0 doesn't remove vsync:** the field becomes far longer. EQU ≥ 1, so every field
+  starts with at least 3 half-lines of sync/equalisation.
+- **Progressive alternates field blanking:** odd blanking (`VTO`) for the first field,
+  even (`VTE`) for the second (C0 measured exactly 1048 = the two averaged).
+
+**Consequence for 1080p:** neither a wider register nor the field merge gives it. The
+closest the VI can get is two 540-line progressive fields separated by a minimum ~2-line
+vsync (EQU 1, PRB 1). A standard display sees that as two frames, but a custom receiver
+(FPGA) that ignores the mid-frame vsync could stitch them into 1080 lines.
+
 ## 8. Safety
 
 - **Never write `0x1C4` byte2 to anything but `0x20`** — `0x21` hard-hangs the console.
@@ -279,7 +319,8 @@ long before the VI is.
 - `0x1A0` bit 31 is an inert status mirror, not a usable divide control.
 - The tools use **write-ahead logging**: each intended register write is flushed to the USB
   log *before* the poke, so if a value hangs the console the log names the exact write.
-- Bad VI *timing* only produces a bad/absent picture; it does not hang.
+- Bad VI *timing* only produces a bad/absent picture; it does not hang (confirmed again by
+  viclkmax up to 567 MHz and by vilinetest's out-of-range fields).
 
 ---
 
