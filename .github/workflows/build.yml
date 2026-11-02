@@ -21,7 +21,7 @@ jobs:
           set -u
           powerpc-eabi-gcc --version | head -1
           fail=0
-          for d in vi_probe vi_pll vi720test chromatest chromatest480 vimodetest viclkmax; do
+          for d in vi_probe vi_pll vi720test chromatest chromatest480 vimodetest viclkmax vilinetest; do
             [ -f "tools/$d/Makefile" ] || continue
             echo "=== $d ==="
             if make -C "tools/$d" > "build-$d.log" 2>&1; then
@@ -38,7 +38,7 @@ jobs:
       - name: Stage dols
         run: |
           set -eux
-          for d in vi_probe vi_pll vi720test chromatest chromatest480 vimodetest viclkmax; do
+          for d in vi_probe vi_pll vi720test chromatest chromatest480 vimodetest viclkmax vilinetest; do
             [ -f "tools/$d/boot.dol" ] || continue
             mkdir -p "dist/apps/$d"
             cp "tools/$d/boot.dol" "dist/apps/$d/"
