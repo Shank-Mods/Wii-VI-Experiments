@@ -4,8 +4,9 @@ Clean-room reverse engineering of the Nintendo Wii (Hollywood) Video Interface p
 PLL, carried out by writing candidate registers on a retail console and measuring the real
 VI clock against the CPU timebase. The headline result:
 
-> **The Wii VI pixel clock is software-reprogrammable from its stock 54 MHz up to at least
-> 193 MHz, by a simple, exact law:**
+> **The Wii VI pixel clock is software-reprogrammable from its stock 54 MHz up to
+> 540 MHz (10x stock; the VI's timing logic breaks down between 540 and 567 MHz), by a
+> simple, exact law:**
 >
 > ### F = 54 MHz × Nfb / V
 >
@@ -232,6 +233,42 @@ Fitted law (matches every measurement in runs 1-3, including the byte0 trim poin
 
 With byte0 left at `0xC0` this reduces to F = 54 x Nfb / V. CLKF gives about 1.93 MHz steps at
 V = 7, so finer clocks than the byte1 steps are available by also setting byte0 bits 6-7.
+
+## 7b. Clock ceiling (viclkmax, run 1)
+
+`tools/viclkmax` climbed the clock on a 1920x960p raster (2046-clock lines, 1000 lines)
+and measured each step on the beam counter. Console: retail Wii at stock system clock.
+Log: [`logs/viclkmax-run1-stock-cpu.txt`](../logs/viclkmax-run1-stock-cpu.txt).
+
+| F (MHz) | Nfb | V | VCO (MHz) | Measured (MHz) | Result |
+| ---: | ---: | ---: | ---: | ---: | --- |
+| 54 … 513 | 7–25 | 15 … 1 | 756 … 2700 | within 0.016 % of target at all 32 steps | OK |
+| 540.000 | 20 | 2 | 2160 | 540.002, 10 s soak 540.002–540.017 | **OK (best)** |
+| 540.000 | 10 | 1 | 1080 | **270.001** (exactly half) | wrong clock |
+| 567.000 | 21 | 2 | 2268 | 583.9 / 588.0, DPV runs to 2047 instead of 2000 | **timing logic fails** |
+
+Findings:
+
+- **The VI's timing logic runs cleanly up to F = 540 MHz** (pixel rate 270 MHz), exact to
+  a few ppm and stable over a 10 s soak. At 567 MHz the counters misbehave: the vertical
+  counter overruns its programmed wrap (2047 instead of 2000), lines come out ~3-4 %
+  short, and the field interrupt rate is wrong. That is a logic timing failure, not a
+  PLL-lock failure (lock bit set) and not a hang. The ceiling lies between 540 and
+  567 MHz; no setting with Nfb ≤ 25 lands in that gap.
+- **The PLL locked at every setting tried**: VCO 756–2700 MHz, V = 1–15. V = 1–3 and
+  11–15 behave as `F = 54 x Nfb / V` (first verification outside V = 4–10).
+- **Anomaly:** V = 1 gave the right clock with Nfb = 8 (432 MHz) but exactly half with
+  Nfb = 10 (270 MHz instead of 540). Unexplained; possibly a maximum output frequency for
+  the V = 1 path, or V = 1 behaving as 2 above some VCO frequency.
+- The stock-value step (no PLL write) reads lock bit 0; every reprogrammed step reads 1,
+  which suggests bit 31 reports "relocked since the last write" rather than "locked now".
+- Nothing hung, at any clock.
+
+What this does not establish: whether the VI's framebuffer fetch keeps up at these rates
+(270 Mpixel/s = 540 MB/s for a full-width line), and whether anything outside the VI (the
+digital video bus, the AVE encoder, a GCVideo board) can carry such a signal. The bus
+clock equals F, so GCVideo-class receivers designed for 54 MHz are the practical limit
+long before the VI is.
 
 ---
 

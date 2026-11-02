@@ -1,0 +1,239 @@
+
+################ viclkmax session start, build Nov  2 2026 10:12:26
+boot 0x1C4=002006C0 0x1C8=D870700E  safe viTVMode=22  test raster 1920x960p, line 2046 clocks, 1000 lines
+
+TRY  Nfb=7 V=7  F=54.000 MHz  VCO=756 MHz  0x1C4=002006C0 0x1C8=D870700E
+  meas 1: moving  lines=3299 in 249989646 ns  line 13196.5 Hz  F=54.0003 MHz (+0.000 %)  DPV top 2000  max gap 76855 ns
+  meas 2: moving  lines=3299 in 249958403 ns  line 13198.2 Hz  F=54.0070 MHz (+0.013 %)  DPV top 2000  max gap 76395 ns
+  PLL lock bit 0, 13 retrace IRQs in 1000028 us (13.00 Hz; expected 13.20 Hz), back to safe mode: yes
+  RESULT OK  measured 54.0036 MHz
+
+TRY  Nfb=16 V=15  F=57.600 MHz  VCO=1728 MHz  0x1C4=00200FC0 0x1C8=D8F0700E  (V outside verified 4..10)
+  meas 1: moving  lines=3519 in 249995078 ns  line 14076.3 Hz  F=57.6001 MHz (+0.000 %)  DPV top 2000  max gap 71753 ns
+  meas 2: moving  lines=3519 in 249994765 ns  line 14076.3 Hz  F=57.6002 MHz (+0.000 %)  DPV top 2000  max gap 72131 ns
+  PLL lock bit 1, 14 retrace IRQs in 1000082 us (14.00 Hz; expected 14.08 Hz), back to safe mode: yes
+  RESULT OK  measured 57.6002 MHz
+
+TRY  Nfb=17 V=15  F=61.200 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D8F0700E  (V outside verified 4..10)
+  meas 1: moving  lines=3739 in 249999094 ns  line 14956.1 Hz  F=61.2002 MHz (+0.000 %)  DPV top 2000  max gap 67588 ns
+  meas 2: moving  lines=3739 in 249998962 ns  line 14956.1 Hz  F=61.2002 MHz (+0.000 %)  DPV top 2000  max gap 67588 ns
+  PLL lock bit 1, 15 retrace IRQs in 1000091 us (15.00 Hz; expected 14.96 Hz), back to safe mode: yes
+  RESULT OK  measured 61.2002 MHz
+
+TRY  Nfb=17 V=14  F=65.571 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D8E0700E  (V outside verified 4..10)
+  meas 1: moving  lines=4006 in 249994485 ns  line 16024.4 Hz  F=65.5717 MHz (+0.000 %)  DPV top 2000  max gap 63176 ns
+  meas 2: moving  lines=4006 in 249994353 ns  line 16024.4 Hz  F=65.5717 MHz (+0.000 %)  DPV top 2000  max gap 63160 ns
+  PLL lock bit 1, 16 retrace IRQs in 1000082 us (16.00 Hz; expected 16.02 Hz), back to safe mode: yes
+  RESULT OK  measured 65.5717 MHz
+
+TRY  Nfb=13 V=10  F=70.200 MHz  VCO=1404 MHz  0x1C4=00200CC0 0x1C8=D8A0700E
+  meas 1: moving  lines=4288 in 249949316 ns  line 17155.5 Hz  F=70.2002 MHz (+0.000 %)  DPV top 2000  max gap 59094 ns
+  meas 2: moving  lines=4288 in 249949316 ns  line 17155.5 Hz  F=70.2002 MHz (+0.000 %)  DPV top 2000  max gap 59209 ns
+  PLL lock bit 1, 17 retrace IRQs in 1000049 us (17.00 Hz; expected 17.16 Hz), back to safe mode: yes
+  RESULT OK  measured 70.2002 MHz
+
+TRY  Nfb=18 V=13  F=74.769 MHz  VCO=1944 MHz  0x1C4=002011C0 0x1C8=D8D0700E  (V outside verified 4..10)
+  meas 1: moving  lines=4568 in 249998551 ns  line 18272.1 Hz  F=74.7695 MHz (+0.000 %)  DPV top 2000  max gap 55670 ns
+  meas 2: moving  lines=4568 in 249993382 ns  line 18272.5 Hz  F=74.7710 MHz (+0.002 %)  DPV top 2000  max gap 55637 ns
+  PLL lock bit 1, 19 retrace IRQs in 1000044 us (19.00 Hz; expected 18.27 Hz), back to safe mode: yes
+  RESULT OK  measured 74.7702 MHz
+
+TRY  Nfb=9 V=6  F=81.000 MHz  VCO=972 MHz  0x1C4=002008C0 0x1C8=D860700E
+  meas 1: moving  lines=4948 in 249964724 ns  line 19794.8 Hz  F=81.0003 MHz (+0.000 %)  DPV top 2000  max gap 51390 ns
+  meas 2: moving  lines=4948 in 249959489 ns  line 19795.2 Hz  F=81.0020 MHz (+0.002 %)  DPV top 2000  max gap 51341 ns
+  PLL lock bit 1, 20 retrace IRQs in 1000028 us (20.00 Hz; expected 19.79 Hz), back to safe mode: yes
+  RESULT OK  measured 81.0011 MHz
+
+TRY  Nfb=8 V=5  F=86.400 MHz  VCO=864 MHz  0x1C4=002007C0 0x1C8=D850700E
+  meas 1: moving  lines=5278 in 249971028 ns  line 21114.4 Hz  F=86.4003 MHz (+0.000 %)  DPV top 2000  max gap 48378 ns
+  meas 2: moving  lines=5279 in 249978485 ns  line 21117.8 Hz  F=86.4141 MHz (+0.016 %)  DPV top 2000  max gap 48329 ns
+  PLL lock bit 1, 21 retrace IRQs in 1000028 us (21.00 Hz; expected 21.11 Hz), back to safe mode: yes
+  RESULT OK  measured 86.4072 MHz
+
+TRY  Nfb=17 V=10  F=91.800 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D8A0700E
+  meas 1: moving  lines=5608 in 249976658 ns  line 22434.1 Hz  F=91.8003 MHz (+0.000 %)  DPV top 2000  max gap 45662 ns
+  meas 2: moving  lines=5608 in 249976806 ns  line 22434.1 Hz  F=91.8003 MHz (+0.000 %)  DPV top 2000  max gap 45349 ns
+  PLL lock bit 1, 22 retrace IRQs in 1000046 us (22.00 Hz; expected 22.43 Hz), back to safe mode: yes
+  RESULT OK  measured 91.8003 MHz
+
+TRY  Nfb=20 V=11  F=98.182 MHz  VCO=2160 MHz  0x1C4=002013C0 0x1C8=D8B0700E  (V outside verified 4..10)
+  meas 1: moving  lines=5998 in 249982502 ns  line 23993.7 Hz  F=98.1821 MHz (+0.000 %)  DPV top 2000  max gap 42683 ns
+  meas 2: moving  lines=5998 in 249971061 ns  line 23994.8 Hz  F=98.1866 MHz (+0.005 %)  DPV top 2000  max gap 42600 ns
+  PLL lock bit 1, 24 retrace IRQs in 1000028 us (24.00 Hz; expected 23.99 Hz), back to safe mode: yes
+  RESULT OK  measured 98.1844 MHz
+
+TRY  Nfb=8 V=4  F=108.000 MHz  VCO=864 MHz  0x1C4=002007C0 0x1C8=D840700E
+  meas 1: moving  lines=6598 in 249990008 ns  line 26393.1 Hz  F=108.0004 MHz (+0.000 %)  DPV top 2000  max gap 38716 ns
+  meas 2: moving  lines=6599 in 249997497 ns  line 26396.3 Hz  F=108.0135 MHz (+0.013 %)  DPV top 2000  max gap 38732 ns
+  PLL lock bit 1, 27 retrace IRQs in 1000028 us (27.00 Hz; expected 26.39 Hz), back to safe mode: yes
+  RESULT OK  measured 108.0069 MHz
+
+TRY  Nfb=17 V=8  F=114.750 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D880700E
+  meas 1: moving  lines=7010 in 249976543 ns  line 28042.6 Hz  F=114.7504 MHz (+0.000 %)  DPV top 2000  max gap 36460 ns
+  meas 2: moving  lines=7010 in 249976691 ns  line 28042.6 Hz  F=114.7504 MHz (+0.000 %)  DPV top 2000  max gap 36477 ns
+  PLL lock bit 1, 28 retrace IRQs in 1000028 us (28.00 Hz; expected 28.04 Hz), back to safe mode: yes
+  RESULT OK  measured 114.7504 MHz
+
+TRY  Nfb=25 V=11  F=122.727 MHz  VCO=2700 MHz  0x1C4=002018C0 0x1C8=D8B0700E  (V outside verified 4..10)
+  meas 1: moving  lines=7498 in 249998946 ns  line 29992.1 Hz  F=122.7278 MHz (+0.000 %)  DPV top 2000  max gap 34419 ns
+  meas 2: moving  lines=7498 in 249999292 ns  line 29992.1 Hz  F=122.7276 MHz (+0.000 %)  DPV top 2000  max gap 34090 ns
+  PLL lock bit 1, 29 retrace IRQs in 1000058 us (29.00 Hz; expected 29.99 Hz), back to safe mode: yes
+  RESULT OK  measured 122.7277 MHz
+
+TRY  Nfb=17 V=7  F=131.143 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D870700E
+  meas 1: moving  lines=8012 in 249994534 ns  line 32048.7 Hz  F=131.1433 MHz (+0.000 %)  DPV top 2000  max gap 32115 ns
+  meas 2: moving  lines=8012 in 249994551 ns  line 32048.7 Hz  F=131.1433 MHz (+0.000 %)  DPV top 2000  max gap 32098 ns
+  PLL lock bit 1, 32 retrace IRQs in 1000020 us (32.00 Hz; expected 32.05 Hz), back to safe mode: yes
+  RESULT OK  measured 131.1433 MHz
+
+TRY  Nfb=13 V=5  F=140.400 MHz  VCO=1404 MHz  0x1C4=00200CC0 0x1C8=D850700E
+  meas 1: moving  lines=8577 in 249978337 ns  line 34311.0 Hz  F=140.4005 MHz (+0.000 %)  DPV top 2000  max gap 30057 ns
+  meas 2: moving  lines=8577 in 249978205 ns  line 34311.0 Hz  F=140.4006 MHz (+0.000 %)  DPV top 2000  max gap 30074 ns
+  PLL lock bit 1, 34 retrace IRQs in 1000050 us (34.00 Hz; expected 34.31 Hz), back to safe mode: yes
+  RESULT OK  measured 140.4005 MHz
+
+TRY  Nfb=25 V=9  F=150.000 MHz  VCO=2700 MHz  0x1C4=002018C0 0x1C8=D890700E
+  meas 1: moving  lines=9164 in 249992888 ns  line 36657.0 Hz  F=150.0006 MHz (+0.000 %)  DPV top 2000  max gap 28164 ns
+  meas 2: moving  lines=9164 in 249993300 ns  line 36657.0 Hz  F=150.0004 MHz (+0.000 %)  DPV top 2000  max gap 28181 ns
+  PLL lock bit 1, 37 retrace IRQs in 1000015 us (37.00 Hz; expected 36.66 Hz), back to safe mode: yes
+  RESULT OK  measured 150.0005 MHz
+
+TRY  Nfb=12 V=4  F=162.000 MHz  VCO=1296 MHz  0x1C4=00200BC0 0x1C8=D840700E
+  meas 1: moving  lines=9897 in 249990123 ns  line 39589.6 Hz  F=162.0005 MHz (+0.000 %)  DPV top 2000  max gap 26353 ns
+  meas 2: moving  lines=9897 in 249984971 ns  line 39590.4 Hz  F=162.0038 MHz (+0.002 %)  DPV top 2000  max gap 26090 ns
+  PLL lock bit 1, 40 retrace IRQs in 1000002 us (40.00 Hz; expected 39.59 Hz), back to safe mode: yes
+  RESULT OK  measured 162.0022 MHz
+
+TRY  Nfb=16 V=5  F=172.800 MHz  VCO=1728 MHz  0x1C4=00200FC0 0x1C8=D850700E
+  meas 1: moving  lines=10557 in 249994765 ns  line 42228.9 Hz  F=172.8006 MHz (+0.000 %)  DPV top 2000  max gap 24691 ns
+  meas 2: moving  lines=10557 in 249994946 ns  line 42228.9 Hz  F=172.8005 MHz (+0.000 %)  DPV top 2000  max gap 24641 ns
+  PLL lock bit 1, 42 retrace IRQs in 1000011 us (42.00 Hz; expected 42.23 Hz), back to safe mode: yes
+  RESULT OK  measured 172.8005 MHz
+
+TRY  Nfb=17 V=5  F=183.600 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D850700E
+  meas 1: moving  lines=11217 in 249999160 ns  line 44868.2 Hz  F=183.6005 MHz (+0.000 %)  DPV top 2000  max gap 23275 ns
+  meas 2: moving  lines=11217 in 249995242 ns  line 44868.9 Hz  F=183.6034 MHz (+0.002 %)  DPV top 2000  max gap 23259 ns
+  PLL lock bit 1, 45 retrace IRQs in 1000005 us (45.00 Hz; expected 44.87 Hz), back to safe mode: yes
+  RESULT OK  measured 183.6019 MHz
+
+TRY  Nfb=22 V=6  F=198.000 MHz  VCO=2376 MHz  0x1C4=002015C0 0x1C8=D860700E
+  meas 1: moving  lines=12096 in 249982930 ns  line 48387.3 Hz  F=198.0008 MHz (+0.000 %)  DPV top 2000  max gap 21695 ns
+  meas 2: moving  lines=12097 in 249993958 ns  line 48389.2 Hz  F=198.0085 MHz (+0.004 %)  DPV top 2000  max gap 21695 ns
+  PLL lock bit 1, 49 retrace IRQs in 1000007 us (49.00 Hz; expected 48.39 Hz), back to safe mode: yes
+  RESULT OK  measured 198.0047 MHz
+
+TRY  Nfb=16 V=4  F=216.000 MHz  VCO=1728 MHz  0x1C4=00200FC0 0x1C8=D840700E
+  meas 1: moving  lines=13196 in 249990074 ns  line 52786.1 Hz  F=216.0007 MHz (+0.000 %)  DPV top 2000  max gap 20016 ns
+  meas 2: moving  lines=13197 in 249997366 ns  line 52788.6 Hz  F=216.0108 MHz (+0.005 %)  DPV top 2000  max gap 20049 ns
+  PLL lock bit 1, 53 retrace IRQs in 1000009 us (53.00 Hz; expected 52.79 Hz), back to safe mode: yes
+  RESULT OK  measured 216.0057 MHz
+
+TRY  Nfb=17 V=4  F=229.500 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D840700E
+  meas 1: moving  lines=14021 in 249994518 ns  line 56085.2 Hz  F=229.5008 MHz (+0.000 %)  DPV top 2000  max gap 18683 ns
+  meas 2: moving  lines=14021 in 249994518 ns  line 56085.2 Hz  F=229.5008 MHz (+0.000 %)  DPV top 2000  max gap 18930 ns
+  PLL lock bit 1, 56 retrace IRQs in 1000011 us (56.00 Hz; expected 56.09 Hz), back to safe mode: yes
+  RESULT OK  measured 229.5008 MHz
+
+TRY  Nfb=23 V=5  F=248.400 MHz  VCO=2484 MHz  0x1C4=002016C0 0x1C8=D850700E
+  meas 1: moving  lines=15175 in 249983539 ns  line 60704.0 Hz  F=248.4008 MHz (+0.000 %)  DPV top 2000  max gap 17267 ns
+  meas 2: moving  lines=15176 in 249999720 ns  line 60704.1 Hz  F=248.4010 MHz (+0.000 %)  DPV top 2000  max gap 17267 ns
+  PLL lock bit 1, 60 retrace IRQs in 1000027 us (60.00 Hz; expected 60.70 Hz), back to safe mode: yes
+  RESULT OK  measured 248.4009 MHz
+
+TRY  Nfb=20 V=4  F=270.000 MHz  VCO=2160 MHz  0x1C4=002013C0 0x1C8=D840700E
+  meas 1: moving  lines=16495 in 249990172 ns  line 65982.6 Hz  F=270.0008 MHz (+0.000 %)  DPV top 2000  max gap 16246 ns
+  meas 2: moving  lines=16495 in 249989975 ns  line 65982.6 Hz  F=270.0010 MHz (+0.000 %)  DPV top 2000  max gap 16213 ns
+  PLL lock bit 1, 66 retrace IRQs in 1000027 us (66.00 Hz; expected 65.98 Hz), back to safe mode: yes
+  RESULT OK  measured 270.0009 MHz
+
+TRY  Nfb=16 V=3  F=288.000 MHz  VCO=1728 MHz  0x1C4=00200FC0 0x1C8=D830700E  (V outside verified 4..10)
+  meas 1: moving  lines=17595 in 249994748 ns  line 70381.5 Hz  F=288.0010 MHz (+0.000 %)  DPV top 2000  max gap 15275 ns
+  meas 2: moving  lines=17595 in 249992740 ns  line 70382.0 Hz  F=288.0033 MHz (+0.001 %)  DPV top 2000  max gap 15275 ns
+  PLL lock bit 1, 70 retrace IRQs in 1000013 us (70.00 Hz; expected 70.38 Hz), back to safe mode: yes
+  RESULT OK  measured 288.0022 MHz
+
+TRY  Nfb=17 V=3  F=306.000 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D830700E  (V outside verified 4..10)
+  meas 1: moving  lines=18695 in 249999094 ns  line 74780.3 Hz  F=306.0009 MHz (+0.000 %)  DPV top 2000  max gap 14337 ns
+  meas 2: moving  lines=18695 in 249998864 ns  line 74780.3 Hz  F=306.0012 MHz (+0.000 %)  DPV top 2000  max gap 14370 ns
+  PLL lock bit 1, 75 retrace IRQs in 1000024 us (75.00 Hz; expected 74.78 Hz), back to safe mode: yes
+  RESULT OK  measured 306.0010 MHz
+
+TRY  Nfb=25 V=4  F=337.500 MHz  VCO=2700 MHz  0x1C4=002018C0 0x1C8=D840700E
+  meas 1: moving  lines=20619 in 249993086 ns  line 82478.3 Hz  F=337.5011 MHz (+0.000 %)  DPV top 2000  max gap 13069 ns
+  meas 2: moving  lines=20620 in 249995967 ns  line 82481.3 Hz  F=337.5136 MHz (+0.004 %)  DPV top 2000  max gap 13086 ns
+  PLL lock bit 1, 82 retrace IRQs in 1000003 us (82.00 Hz; expected 82.48 Hz), back to safe mode: yes
+  RESULT OK  measured 337.5074 MHz
+
+TRY  Nfb=20 V=3  F=360.000 MHz  VCO=2160 MHz  0x1C4=002013C0 0x1C8=D830700E  (V outside verified 4..10)
+  meas 1: moving  lines=21994 in 249997843 ns  line 87976.8 Hz  F=360.0009 MHz (+0.000 %)  DPV top 2000  max gap 12230 ns
+  meas 2: moving  lines=21994 in 249989893 ns  line 87979.6 Hz  F=360.0123 MHz (+0.003 %)  DPV top 2000  max gap 12246 ns
+  PLL lock bit 1, 88 retrace IRQs in 1000005 us (88.00 Hz; expected 87.98 Hz), back to safe mode: yes
+  RESULT OK  measured 360.0066 MHz
+
+TRY  Nfb=22 V=3  F=396.000 MHz  VCO=2376 MHz  0x1C4=002015C0 0x1C8=D830700E  (V outside verified 4..10)
+  meas 1: moving  lines=24193 in 249993415 ns  line 96774.5 Hz  F=396.0015 MHz (+0.000 %)  DPV top 2000  max gap 11242 ns
+  meas 2: moving  lines=24194 in 249994074 ns  line 96778.3 Hz  F=396.0168 MHz (+0.004 %)  DPV top 2000  max gap 11242 ns
+  PLL lock bit 1, 97 retrace IRQs in 1000007 us (97.00 Hz; expected 96.77 Hz), back to safe mode: yes
+  RESULT OK  measured 396.0091 MHz
+
+TRY  Nfb=8 V=1  F=432.000 MHz  VCO=864 MHz  0x1C4=002007C0 0x1C8=D810700E  (V outside verified 4..10)
+  meas 1: moving  lines=26393 in 249999506 ns  line 105572.2 Hz  F=432.0015 MHz (+0.000 %)  DPV top 2000  max gap 10403 ns
+  meas 2: moving  lines=26393 in 249997580 ns  line 105573.0 Hz  F=432.0048 MHz (+0.001 %)  DPV top 2000  max gap 10403 ns
+  PLL lock bit 1, 106 retrace IRQs in 1000009 us (106.00 Hz; expected 105.57 Hz), back to safe mode: yes
+  RESULT OK  measured 432.0031 MHz
+
+TRY  Nfb=17 V=2  F=459.000 MHz  VCO=1836 MHz  0x1C4=002010C0 0x1C8=D820700E  (V outside verified 4..10)
+  meas 1: moving  lines=28042 in 249994353 ns  line 112170.5 Hz  F=459.0018 MHz (+0.000 %)  DPV top 2000  max gap 9843 ns
+  meas 2: moving  lines=28042 in 249994502 ns  line 112170.5 Hz  F=459.0016 MHz (+0.000 %)  DPV top 2000  max gap 9843 ns
+  PLL lock bit 1, 112 retrace IRQs in 1000011 us (112.00 Hz; expected 112.17 Hz), back to safe mode: yes
+  RESULT OK  measured 459.0017 MHz
+
+TRY  Nfb=19 V=2  F=513.000 MHz  VCO=2052 MHz  0x1C4=002012C0 0x1C8=D820700E  (V outside verified 4..10)
+  meas 1: moving  lines=31341 in 249993925 ns  line 125367.0 Hz  F=513.0020 MHz (+0.000 %)  DPV top 2000  max gap 9004 ns
+  meas 2: moving  lines=31342 in 249999440 ns  line 125368.3 Hz  F=513.0070 MHz (+0.001 %)  DPV top 2000  max gap 9004 ns
+  PLL lock bit 1, 125 retrace IRQs in 1000004 us (125.00 Hz; expected 125.37 Hz), back to safe mode: yes
+  RESULT OK  measured 513.0045 MHz
+
+TRY  Nfb=21 V=2  F=567.000 MHz  VCO=2268 MHz  0x1C4=002014C0 0x1C8=D820700E  (V outside verified 4..10)
+  meas 1: moving  lines=35673 in 249993465 ns  line 142695.7 Hz  F=583.9109 MHz (+2.983 %)  DPV top 2047  max gap 14650 ns
+  meas 2: moving  lines=35921 in 249993744 ns  line 143687.6 Hz  F=587.9696 MHz (+3.698 %)  DPV top 2047  max gap 14666 ns
+  PLL lock bit 1, 161 retrace IRQs in 1000008 us (161.00 Hz; expected 138.56 Hz), back to safe mode: yes
+  RESULT FAIL: wrong clock  measured 585.9403 MHz
+
+TRY  Nfb=10 V=1  F=540.000 MHz  VCO=1080 MHz  0x1C4=002009C0 0x1C8=D810700E  (V outside verified 4..10)
+  meas 1: moving  lines=16495 in 249989991 ns  line 65982.6 Hz  F=270.0010 MHz (-50.000 %)  DPV top 2000  max gap 16197 ns
+  meas 2: moving  lines=16495 in 249990189 ns  line 65982.6 Hz  F=270.0008 MHz (-50.000 %)  DPV top 2000  max gap 16197 ns
+  PLL lock bit 1, 66 retrace IRQs in 1000012 us (66.00 Hz; expected 131.96 Hz), back to safe mode: yes
+  RESULT FAIL: wrong clock  measured 270.0009 MHz
+
+TRY  Nfb=20 V=2  F=540.000 MHz  VCO=2160 MHz  0x1C4=002013C0 0x1C8=D820700E  (V outside verified 4..10)
+  meas 1: moving  lines=32991 in 249997777 ns  line 131965.2 Hz  F=540.0015 MHz (+0.000 %)  DPV top 2000  max gap 8444 ns
+  meas 2: moving  lines=32991 in 249997679 ns  line 131965.2 Hz  F=540.0017 MHz (+0.000 %)  DPV top 2000  max gap 8444 ns
+  PLL lock bit 1, 132 retrace IRQs in 1000012 us (132.00 Hz; expected 131.96 Hz), back to safe mode: yes
+  RESULT OK  measured 540.0016 MHz
+
+SOAK Nfb=20 V=2  F=540.000 MHz  VCO=2160 MHz  0x1C4=002013C0 0x1C8=D820700E  (V outside verified 4..10)
+  meas 1: moving  lines=32991 in 249997744 ns  line 131965.2 Hz  F=540.0016 MHz (+0.000 %)  DPV top 2000  max gap 8444 ns
+  meas 2: moving  lines=32991 in 249997613 ns  line 131965.3 Hz  F=540.0018 MHz (+0.000 %)  DPV top 2000  max gap 8444 ns
+  meas 3: moving  lines=32991 in 249995358 ns  line 131966.5 Hz  F=540.0067 MHz (+0.001 %)  DPV top 2000  max gap 8444 ns
+  meas 4: moving  lines=32991 in 249993152 ns  line 131967.6 Hz  F=540.0115 MHz (+0.002 %)  DPV top 2000  max gap 8444 ns
+  meas 5: moving  lines=32991 in 249997662 ns  line 131965.2 Hz  F=540.0017 MHz (+0.000 %)  DPV top 2000  max gap 8444 ns
+  meas 6: moving  lines=32991 in 249997580 ns  line 131965.3 Hz  F=540.0019 MHz (+0.000 %)  DPV top 2000  max gap 8444 ns
+  meas 7: moving  lines=32991 in 249995341 ns  line 131966.5 Hz  F=540.0068 MHz (+0.001 %)  DPV top 2000  max gap 8444 ns
+  meas 8: moving  lines=32991 in 249993135 ns  line 131967.6 Hz  F=540.0115 MHz (+0.002 %)  DPV top 2000  max gap 8444 ns
+  meas 9: moving  lines=32992 in 249998304 ns  line 131968.9 Hz  F=540.0167 MHz (+0.003 %)  DPV top 2000  max gap 8444 ns
+  meas 10: moving  lines=32991 in 249997613 ns  line 131965.3 Hz  F=540.0018 MHz (+0.000 %)  DPV top 2000  max gap 8460 ns
+  PLL lock bit 1, 1220 retrace IRQs in 9250029 us (131.89 Hz; expected 131.96 Hz), back to safe mode: yes
+  RESULT OK  measured 540.0091 MHz
+
+SUMMARY: best 540.000 MHz (Nfb 20 V 2, pixel rate 270.000 MHz), first fail 567.000 MHz, soak passed
+  1280x720p60                needs F 148.5 MHz  registers fit  clock OK
+  1920x1080i60 (2046 line)   needs F 138.1 MHz  registers fit  clock OK
+  1280x960p60                needs F 216.0 MHz  registers fit  clock OK
+  1920x1020p60 (tallest p)   needs F 260.3 MHz  registers fit  clock OK
+  1920x2040i60 (tallest i)   needs F 257.8 MHz  registers fit  clock OK
+  1920x1080i120 (2046 line)  needs F 276.2 MHz  registers fit  clock OK
+  1280x720p120               needs F 297.0 MHz  registers fit  clock OK
+  1920x1020p120              needs F 520.5 MHz  registers fit  clock OK
+  1920x1080i60 (2200 line)   needs F 148.5 MHz  registers too big  clock OK
+  1920x1080p60               needs F 297.0 MHz  registers too big  clock OK
