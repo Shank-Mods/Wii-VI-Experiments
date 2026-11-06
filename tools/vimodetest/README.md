@@ -11,13 +11,21 @@ safe mode from any point.
 | D-pad | move (Left/Right switches column) | previous / next pattern |
 | A | start the selected mode | info overlay on/off |
 | START, HOME, + | HOME quits to the loader | back to the menu |
+| 1 (Wii Remote) / Y (GC) | mark "colors look wrong" in the log | same, for this mode |
+| 2 (Wii Remote) / X (GC) | mark "colors look right" in the log | same, for this mode |
+
+The menu has a color check line (RED GREEN BLUE YELLOW CYAN MAGENTA, each in its own
+color). If Cb and Cr get swapped somewhere in the chain, RED turns bluish, BLUE reddish
+and YELLOW/CYAN trade places. Marking it with 1/Y puts a line in the log with how many
+mode switches have happened and which mode ran last.
 
 Each mode's actual line rate, field rate and frame line count are measured when you enter
 it (against the CPU timebase, so this works even if the display doesn't sync) and shown in
 the overlay. The menu's detail line shows them too. Everything is also logged, along with
 every register value written, to `vimodetest.txt` on the USB drive (or SD). The log is
-appended to, never cleared, and each line is written and closed immediately, so after a
-lockup the last line shows how far it got.
+appended to, never cleared. Lines are written in batches: once just before the VI is
+reprogrammed (so after a lockup the last entry names the mode being entered) and once after
+returning to the menu.
 
 The disc-slot LED blinks about twice a second while the app is running. If the picture
 freezes or drops out and the LED **keeps blinking**, the Wii is fine and the display chain
@@ -88,6 +96,10 @@ field are at most 1023, and a whole field (active plus blanking) must stay withi
   interrupt), framebuffer fetch (PICCONF, scaler off, field base addresses), clock select,
   and the VI PLL (`0x1C4` byte 1 = multiplier, `0x1C8` bits 20-23 = divider). `0x1C4` byte 2
   is never written.
+- The register image includes the border (656) blanking registers `0x72`/`0x74`, which
+  libogc never sets: they are captured at boot and restored on every switch.
+- If the GPU ever times out, the frame is aborted and all GX state is re-sent (an abort
+  discards it, which would otherwise corrupt every later frame).
 - Every switch (into a mode or back to the menu) is the same fixed sequence: VI off, VI
   reset, PLL written, 50 ms to relock, a complete register image written, VI on. The menu's
   image is the one libogc set up at boot, captured once. So a mode comes up identically no

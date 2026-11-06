@@ -217,16 +217,31 @@ static u32 dpv(void) { return VI[0x2C / 2] & 0x7FF; }
 // ======================================================================= logging
 // Appends (never truncates), one open/close per line, so the file survives a hang and a
 // relaunch: the last line written before a lockup shows what the app was doing.
+// Lines are collected in RAM and written in one open/append/close per batch: once before
+// the VI is touched (write-ahead, so a hang still leaves the mode name in the file) and
+// once after returning to the menu. Opening the file for every line (and on two devices)
+// meant dozens of USB transactions per mode switch, and a stalled USB write freezes the app.
+static const char *log_path;
+static char logbuf[16384];
+static u32 loglen;
+static void log_flush(void)
+{
+    if (!log_path || !loglen) { loglen = 0; return; }
+    FILE *f = fopen(log_path, "a");
+    if (f) { fwrite(logbuf, 1, loglen, f); fclose(f); }
+    loglen = 0;
+}
 static void logf_(const char *fmt, ...)
 {
-    if (!fat_ok) return;
-    static const char *const paths[] = { "usb:/vimodetest.txt", "sd:/vimodetest.txt" };
+    if (!log_path) return;
     char line[320];
-    va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof(line), fmt, ap); va_end(ap);
-    for (int i = 0; i < 2; i++) {
-        FILE *f = fopen(paths[i], "a");
-        if (f) { fputs(line, f); fputc('\n', f); fclose(f); }
-    }
+    va_list ap; va_start(ap, fmt); int n = vsnprintf(line, sizeof(line) - 1, fmt, ap); va_end(ap);
+    if (n < 0) return;
+    if (n > (int)sizeof(line) - 2) n = sizeof(line) - 2;
+    line[n++] = '\n';
+    if (loglen + n > sizeof(logbuf)) log_flush();
+    memcpy(logbuf + loglen, line, n);
+    loglen += n;
 }
 
 // ======================================================================= VI programming
@@ -236,6 +251,7 @@ static void set_fbb(const Calc *c, void *fb)
     u32 b = c->il ? t + (u32)c->A * 2 : t;   // interlaced: bottom field starts one line down
     u32 flag = 0;
     if (t >= 0x01000000 || b >= 0x01000000) { flag = 1; t >>= 5; b >>= 5; }
+    // 16-bit writes right after a retrace interrupt, the same way libogc / the SDK flip
     VI[0x1C / 2] = (u16)((flag << 12) | ((t >> 16) & 0xFF));
     VI[0x1E / 2] = (u16)(t & 0xFFFF);
     VI[0x24 / 2] = (u16)((b >> 16) & 0xFF);
@@ -262,7 +278,9 @@ static const u8 img_regs[] = {
     0x1C, 0x1E, 0x20, 0x22, 0x24, 0x26, 0x28, 0x2A,
     0x30, 0x32, 0x34, 0x36, 0x38, 0x3A, 0x3C, 0x3E,
     0x48, 0x4A, 0x4C, 0x4E, 0x50, 0x52, 0x54, 0x56, 0x58, 0x5A, 0x5C, 0x5E, 0x60, 0x62,
-    0x64, 0x66, 0x68, 0x6A, 0x6C, 0x70 };
+    0x64, 0x66, 0x68, 0x6A, 0x6C, 0x70,
+    0x72, 0x74 };   // 0x72/0x74: border (656) blanking end/start; libogc never sets them,
+                    // so they must be carried over from boot or a VI reset could lose them
 #define NIMG (sizeof(img_regs))
 typedef struct { u16 v[NIMG]; u16 dcr; } VIImage;
 static VIImage safe_img;          // the safe mode exactly as libogc programmed it at boot
@@ -375,7 +393,8 @@ static void program_vi(const Calc *c, void *fb)
     const Clock *k = &clocks[c->m->clk];
     build_image(c, fb, &cur_img);
     log_image("write", &cur_img);
-    logf_("  PLL 0x1C4=%08X 0x1C8=%08X", (unsigned)pll_1c4(k), (unsigned)pll_1c8(k));
+    logf_("  PLL 0x1C4=%08X 0x1C8=%08X  DTV(0x6E)=%04X", (unsigned)pll_1c4(k), (unsigned)pll_1c8(k), VI[0x6E / 2]);
+    log_flush();                                   // write-ahead
     apply_image(&cur_img, pll_1c4(k), pll_1c8(k));
 }
 
@@ -391,8 +410,12 @@ static void restore_safe(void)
     VIDEO_Flush();
     int got = 0;
     for (int i = 0; i < 4; i++) got += wait_retrace(200);
-    logf_("  returned to safe mode (%d/4 retraces seen)", got);
+    u32 r4 = HW(0x1C4) & 0x7FFFFFFFu, r8 = HW(0x1C8);
+    logf_("  returned to safe mode (%d/4 retraces seen)  PLL %08X/%08X%s  DTV(0x6E)=%04X",
+          got, (unsigned)r4, (unsigned)r8, (r4 == boot1c4 && r8 == boot1c8) ? "" : "  <-- NOT the boot values",
+          VI[0x6E / 2]);
     verify_image(&safe_img, "safe");
+    log_flush();
 }
 
 // ======================================================================= measurement
@@ -438,9 +461,8 @@ static Meas measure(void)
 static float cl, cr, ct, cb;   // current tile clip rectangle, logical coordinates
 static int   cur_field;        // -1 = frame pass, 0/1 = field pass
 
-static void gx_init(void)
+static void gx_state(void)
 {
-    GX_Init(gpfifo, sizeof(gpfifo));
     GX_SetCopyClear((GXColor){ 0, 0, 0, 0xFF }, GX_MAX_Z24);
     GX_SetPixelFmt(GX_PF_RGB8_Z24, GX_ZC_LINEAR);
     GX_SetCullMode(GX_CULL_NONE);
@@ -482,6 +504,12 @@ static void gx_init(void)
     GX_InitTexObjFilterMode(&checker_obj, GX_NEAR, GX_NEAR);
     GX_InvalidateTexAll();
     GX_LoadTexObj(&checker_obj, GX_TEXMAP0);
+}
+
+static void gx_init(void)
+{
+    GX_Init(gpfifo, sizeof(gpfifo));
+    gx_state();
 }
 
 static inline bool vis(float x0, float y0, float x1, float y1)
@@ -709,8 +737,11 @@ static bool gpu_wait(const char *what)
     while (!gx_done && gettime() < to) heartbeat();
     if (gx_done) return true;
     gpu_timeouts++;
-    logf_("  GPU timeout (%s), #%lu: aborting frame", what, (unsigned long)gpu_timeouts);
+    logf_("  GPU timeout (%s), #%lu: aborting frame and re-sending GX state", what, (unsigned long)gpu_timeouts);
     GX_AbortFrame();
+    gx_state();          // an abort discards the GPU's state; without this, later frames glitch
+    GX_Flush();
+    log_flush();
     return false;
 }
 static void gpu_finish(const char *what)
@@ -773,6 +804,8 @@ static void clear_fb(void *fb, u32 bytes)
 #define BTN_LEFT 64
 #define BTN_RIGHT 128
 #define BTN_HOME 256
+#define BTN_MARK_BAD 512
+#define BTN_MARK_OK 1024
 
 static u32 read_buttons(void)
 {
@@ -786,12 +819,16 @@ static u32 read_buttons(void)
     if ((w & WPAD_BUTTON_A) || (g & PAD_BUTTON_A)) b |= BTN_A;
     if ((g & PAD_BUTTON_START) || (w & WPAD_BUTTON_PLUS)) b |= BTN_BACK;
     if (w & WPAD_BUTTON_HOME) b |= BTN_BACK | BTN_HOME;
+    if ((w & WPAD_BUTTON_1) || (g & PAD_BUTTON_Y)) b |= BTN_MARK_BAD;
+    if ((w & WPAD_BUTTON_2) || (g & PAD_BUTTON_X)) b |= BTN_MARK_OK;
     if (b & (BTN_RIGHT | BTN_DOWN)) b |= BTN_NEXT;
     if (b & (BTN_LEFT | BTN_UP)) b |= BTN_PREV;
     return b;
 }
 
 // ======================================================================= test mode
+static int last_mode = -1, switches = 0;
+
 static void run_mode(int idx)
 {
     static Calc c;
@@ -802,9 +839,10 @@ static void run_mode(int idx)
     int front = 0, back = 1;
 
     logf_("");
-    logf_("=== %s [%s]  %ux%u%c  %s  expect line %lu Hz field %lu mHz",
-          c.m->name, c.m->aspect, c.A, c.frameH, c.il ? 'i' : 'p', clocks[c.m->clk].desc,
-          (unsigned long)c.exp_line_hz, (unsigned long)c.exp_field_mhz);
+    logf_("=== switch #%d: %s [%s]  %ux%u%c  %s  expect line %lu Hz field %lu mHz  (previous: %s)",
+          switches, c.m->name, c.m->aspect, c.A, c.frameH, c.il ? 'i' : 'p', clocks[c.m->clk].desc,
+          (unsigned long)c.exp_line_hz, (unsigned long)c.exp_field_mhz,
+          last_mode >= 0 ? modes[last_mode].name : "none");
 
     clear_fb(xfb[0], c.xfb_bytes);
     clear_fb(xfb[1], c.xfb_bytes);
@@ -831,6 +869,8 @@ static void run_mode(int idx)
         if (b & BTN_PREV) { pat = (pat + NPATS - 1) % NPATS; redraw = true; }
         if (b & (BTN_NEXT | BTN_PREV)) logf_("  pattern %d", pat + 1);
         if (b & BTN_A)    { show_info = !show_info; redraw = true; }
+        if (b & (BTN_MARK_BAD | BTN_MARK_OK))
+            logf_("  USER MARK: colors look %s in this mode (pattern %d)", (b & BTN_MARK_BAD) ? "WRONG" : "correct", pat + 1);
 
         if (pat == 11) {
             // Motion: one new image per VI field. Field-rendered modes draw only the field
@@ -907,6 +947,9 @@ static void menu_draw(void)
     printf("\x1b[2;2HA: start test   D-pad: move   HOME: quit");
     printf("\x1b[25;2HIn a test: D-pad = pattern, A = info on/off,");
     printf("\x1b[26;2HSTART (GC) / HOME or + (Wii Remote) = back here.");
+    // colour check: with Cb/Cr swapped, RED shows blue-ish and BLUE red-ish, YELLOW<->CYAN
+    printf("\x1b[24;2HColors: \x1b[31mRED \x1b[32mGREEN \x1b[34mBLUE \x1b[33mYELLOW \x1b[36mCYAN \x1b[35mMAGENTA"
+           "\x1b[37m  1/Y: wrong  2/X: OK");
     for (int g = 0; g < 6; g++) {
         int row = 4 + (g % 3) * 5, col = g < 3 ? 2 : 41;
         printf("\x1b[%d;%dH\x1b[33m-- %s --\x1b[37m", row, col, group_name[g]);
@@ -952,12 +995,23 @@ int main(void)
     img_read(&safe_img);
 
     fat_ok = fatInitDefault();
+    if (fat_ok) {
+        static const char *const paths[] = { "usb:/vimodetest.txt", "sd:/vimodetest.txt" };
+        for (int i = 0; i < 2 && !log_path; i++) {
+            FILE *f = fopen(paths[i], "a");
+            if (f) { fclose(f); log_path = paths[i]; }
+        }
+    }
     logf_("");
     logf_("################ session start: vimodetest build " __DATE__ " " __TIME__);
     logf_("boot 0x1C4=%08X 0x1C8=%08X  safe viTVMode=%u %ux%u  xfb0=%08X xfb1=%08X",
           (unsigned)boot1c4, (unsigned)boot1c8, safe->viTVMode, safe->fbWidth, safe->xfbHeight,
           (unsigned)MEM_VIRTUAL_TO_PHYSICAL(xfb[0]), (unsigned)MEM_VIRTUAL_TO_PHYSICAL(xfb[1]));
     log_image("safe mode at boot:", &safe_img);
+    logf_("boot extras: 0x68=%04X 0x6A=%04X 0x6E(DTV)=%04X 0x70=%04X 0x72=%04X 0x74=%04X 0x76=%04X  log on %s",
+          VI[0x68 / 2], VI[0x6A / 2], VI[0x6E / 2], VI[0x70 / 2], VI[0x72 / 2], VI[0x74 / 2], VI[0x76 / 2],
+          log_path ? log_path : "none");
+    log_flush();
 
     gx_init();
     GX_SetDrawDoneCallback(on_drawdone);
@@ -977,14 +1031,25 @@ int main(void)
         if (b & BTN_DOWN) menu_move(sel + 1);
         if (b & BTN_LEFT) menu_move(sel >= 12 && sel < 24 ? sel - 12 : sel);
         if (b & BTN_RIGHT) menu_move(sel < 12 ? sel + 12 : sel == NMODES ? 24 : sel);
+        if (b & (BTN_MARK_BAD | BTN_MARK_OK)) {
+            logf_("");
+            logf_("USER MARK: menu colors look %s (after %d mode switches; last mode: %s)",
+                  (b & BTN_MARK_BAD) ? "WRONG" : "correct", switches,
+                  last_mode >= 0 ? modes[last_mode].name : "none");
+            log_flush();
+            printf("\x1b[2;50H\x1b[32mmarked in log\x1b[37m");
+        }
         if (b & BTN_A) {
             if (sel >= NMODES) break;
+            switches++;
             run_mode(sel);
+            last_mode = sel;
             menu_draw();
         }
     }
 
     logf_("exit to loader");
+    log_flush();
     u32 l; _CPU_ISR_Disable(l); HW(0x1C4) = boot1c4; HW(0x1C8) = boot1c8; _CPU_ISR_Restore(l);
     VIDEO_Configure(safe);
     VIDEO_SetBlack(true);
