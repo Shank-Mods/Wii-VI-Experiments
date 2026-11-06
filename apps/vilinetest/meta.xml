@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>VI Line Test</name>
+  <coder>Shank-Mods</coder>
+  <version>1</version>
+  <short_description>Probe for more than 1023 VI lines per field</short_description>
+  <long_description>Reads back which bits exist in every VI register, runs rasters with the bits above the documented line-count fields set and measures the frame length on the beam counter, and tries merging two progressive fields into one frame by switching off the vsync between them. Includes a 480p made from two merged 240-line fields to check on any 480p display. Logs to vilinetest.txt.</long_description>
+  <ahb_access/>
+</app>

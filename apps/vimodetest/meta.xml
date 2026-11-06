@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>VI Mode Test</name>
+  <coder>Shank-Mods</coder>
+  <version>1</version>
+  <short_description>Test 240p..1080i/720p and 120 Hz VI modes</short_description>
+  <long_description>Boots at the console's normal video mode and lists 24 test resolutions (240p, 480i, 480p, 960i, 1080i, 720p, double-wide chroma, 1440-wide and 120 Hz variants). Selecting one programs the VI timing and, where needed, the VI PLL directly, then shows test patterns (D-pad). Each mode's real line and field rate are measured and logged to vimodetest.txt. START (GC pad) or HOME / + (Wii Remote) returns to the list at the safe mode. Clock registers reset on power-off.</long_description>
+  <ahb_access/>
+</app>

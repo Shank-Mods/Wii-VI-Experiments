@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>Chroma test 480p + X2 1440</name>
+  <coder>Shank-Mods</coder>
+  <version>1</version>
+  <short_description>480p 4:2:2 test + brute-force 4:4:4 at 1440 wide (108 MHz)</short_description>
+  <long_description>Chroma-subsampling torture test, 480p only. D-pad left/right switches between standard 480p and a double-horizontal 480p that outputs 1440 wide by duplicating every source pixel, so each pixel owns a full 4:2:2 pair and an FPGA can rebuild 4:4:4. The X2 mode reprograms the VI PLL to ~108 MHz; it is restored on exit and resets on reboot. D-pad up/down switches pattern. HOME or START exits.</long_description>
+  <ahb_access/>
+</app>
