@@ -201,9 +201,42 @@ static int ave_read(u8 reg, u8 *out, int len) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Registers that hold what's written (bits=1 map on an AVE-RVL reading 0x41 at 0x7F: every bit
+// of these reads back; the rest read 0 or are fixed). Their start-up values are saved and put
+// back between steps, so a step's writes never leak into the next.
+
+static bool stored_reg(int r) {
+    return (r <= 0x0A) || (r >= 0x0D && r <= 0x30) || (r >= 0x32 && r <= 0x37) || (r >= 0x3A && r <= 0x3E) ||
+           (r >= 0x40 && r <= 0x59) || r == 0x6A || r == 0x71 || r == 0x72 || (r >= 0x7A && r <= 0x7D);
+}
+static u8 saved[0x80];
+static bool saved_ok;
+
+static void ave_save(void) {
+    saved_ok = true;
+    for (int r = 0; r < 0x80; r++)
+        if (stored_reg(r) && ave_read((u8)r, &saved[r], 1) != 1)
+            saved_ok = false;
+}
+
+static void ave_restore_saved(void) {
+    if (!saved_ok)
+        return;
+    for (int r = 0; r < 0x80; r++)
+        if (stored_reg(r))
+            ave_write((u8)r, &saved[r], 1);
+}
+
+// ---------------------------------------------------------------------------------------------
 // The encoder settings libogc writes (video.c, __VISetupEncoder), to return to between steps
 
+static void ave_libogc(void);
 static void ave_baseline(void) {
+    ave_restore_saved();
+    ave_libogc();
+}
+
+static void ave_libogc(void) {
     const vu16 *vi = (vu16 *)0xCC002000;
     const u32 dtv = vi[55] & 1;  // VI_VISEL: component cable / progressive capable
     const u32 tv = VIDEO_GetCurrentTvMode();
@@ -486,6 +519,8 @@ int main(int argc, char **argv) {
         rmode->xfbHeight, (rmode->viTVMode & 3) == VI_PROGRESSIVE ? "p" : (rmode->viTVMode & 3) == VI_NON_INTERLACE ? "p (240p-style)" : "i",
         (unsigned)VIDEO_GetCurrentTvMode(), (unsigned)(vi[55] & 1), nsteps, hold, keep ? ", writes kept" : "");
 
+    ave_save();
+    say("saved the stored registers' start-up values%s", saved_ok ? "" : " (NOT all readable: restores only libogc's)");
     if (do_dump)
         dump();
     if (do_bits) {
