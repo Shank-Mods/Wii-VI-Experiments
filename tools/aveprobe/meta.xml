@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>AVE Probe</name>
+  <coder>Shank-Mods</coder>
+  <version>1</version>
+  <short_description>Reads and writes the AV encoder's I2C registers</short_description>
+  <long_description>Shows a test pattern with a machine-readable step code, tries reading back the AVE's registers over I2C, and steps through AVE register writes given in sd:/apps/aveprobe/wtb.txt (or by the Wii test bench), holding each so a capture can see its effect. AVE settings reset on power-off.</long_description>
+  <ahb_access/>
+</app>
