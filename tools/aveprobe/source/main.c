@@ -483,7 +483,7 @@ int main(int argc, char **argv) {
 
     const vu16 *vi = (vu16 *)0xCC002000;
     say("aveprobe: video %ux%u%s (VI tv mode %u, VISEL %u), %d steps of %u ms%s", rmode->fbWidth,
-        rmode->xfbHeight, (rmode->viTVMode & VI_NON_INTERLACE) ? "p" : "i",
+        rmode->xfbHeight, (rmode->viTVMode & 3) == VI_PROGRESSIVE ? "p" : (rmode->viTVMode & 3) == VI_NON_INTERLACE ? "p (240p-style)" : "i",
         (unsigned)VIDEO_GetCurrentTvMode(), (unsigned)(vi[55] & 1), nsteps, hold, keep ? ", writes kept" : "");
 
     if (do_dump)
