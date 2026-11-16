@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>VI Clock Max</name>
+  <coder>Shank-Mods</coder>
+  <version>1</version>
+  <short_description>Find the highest VI pixel clock the Wii runs at</short_description>
+  <long_description>Climbs the VI PLL step by step, measures the real clock on the VI's beam counter at each step, returns to the normal video mode between steps and logs everything to viclkmax.txt. Results persist in viclkmax_state.txt, so after a hang you power-cycle, relaunch and continue. The disc-slot LED blinks slowly at the menu, fast while a test clock runs, and stops if the console hangs. Clock registers reset on power-off.</long_description>
+  <ahb_access/>
+</app>
