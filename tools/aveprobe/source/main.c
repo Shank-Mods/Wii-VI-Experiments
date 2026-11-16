@@ -219,20 +219,21 @@ static void ave_save(void) {
             saved_ok = false;
 }
 
-static void ave_restore_saved(void) {
-    if (!saved_ok)
-        return;
-    for (int r = 0; r < 0x80; r++)
-        if (stored_reg(r))
-            ave_write((u8)r, &saved[r], 1);
-}
 
 // ---------------------------------------------------------------------------------------------
 // The encoder settings libogc writes (video.c, __VISetupEncoder), to return to between steps
 
 static void ave_libogc(void);
+// Puts back the stored registers the previous step wrote (their start-up values), then libogc's
+// write-only settings. Rewriting every stored register lost the signal on hardware (ave-walk2):
+// some of them don't take single-byte rewrites of their own value harmlessly.
+static u8 touched[0x80];
 static void ave_baseline(void) {
-    ave_restore_saved();
+    if (saved_ok)
+        for (int r = 0; r < 0x80; r++)
+            if (touched[r] && stored_reg(r))
+                ave_write((u8)r, &saved[r], 1);
+    memset(touched, 0, sizeof(touched));
     ave_libogc();
 }
 
@@ -542,6 +543,8 @@ int main(int argc, char **argv) {
         VIDEO_WaitVSync();
         acks[0] = 0;
         for (int i = 0; i < steps[s].n; i++) {
+            for (int k = 0; k < steps[s].len[i]; k++)
+                touched[(steps[s].reg[i] + k) & 0x7F] = 1;
             const int got = ave_write(steps[s].reg[i], steps[s].data[i], steps[s].len[i]);
             o += (size_t)snprintf(acks + o, sizeof(acks) - o, "%s%d/%d", i ? "," : "", got, steps[s].len[i] + 2);
         }
