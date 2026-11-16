@@ -9,6 +9,8 @@
 //
 // Arguments (wtb.txt on SD, or from the Wii test bench as cfg=name=value):
 //   dump=1           try reading registers back (0xE1), 00..FF, and log what answers
+//   bits=1           map the writable bits of 00..7F (write FF / 00, read back, restore)
+//   mode=480i|480p   video mode (default: 480p with a component cable, else the console's)
 //   hold=MS          how long each step stays on screen (default 3000)
 //   w=RR:VV[+RR:VV]  one step: write VV (hex; 2 hex digits per byte, so 71:8e8e is 2 bytes)
 //                    to register RR, several writes per step joined with '+'. Repeatable;
@@ -355,6 +357,39 @@ static void step_text(const step_t *st, char *out, size_t sz) {
     }
 }
 
+// For each register 00..7F (the chip decodes 7 address bits: 80..FF mirror 00..7F): write FF,
+// read, write 00, read, put the original back. Bits that read back as written exist.
+static void bitmap(void) {
+    say("bits: register: original, reads after FF / after 00, restored (r/w bits = FF-read & ~00-read)");
+    char line[200];
+    size_t o = 0;
+    int rw = 0;
+    for (int r = 0; r < 0x80; r++) {
+        u8 orig = 0, a = 0, b = 0, c = 0;
+        const u8 ff = 0xFF, zero = 0x00;
+        ave_read((u8)r, &orig, 1);
+        ave_write((u8)r, &ff, 1);
+        ave_read((u8)r, &a, 1);
+        ave_write((u8)r, &zero, 1);
+        ave_read((u8)r, &b, 1);
+        ave_write((u8)r, &orig, 1);
+        ave_read((u8)r, &c, 1);
+        const u8 bits = (u8)(a & ~b);
+        if (bits)
+            rw++;
+        if (o == 0)
+            o = (size_t)snprintf(line, sizeof(line), "bits");
+        o += (size_t)snprintf(line + o, sizeof(line) - o, " %02X:%02X/%02X/%02X/%02X", r, orig, a, b, c);
+        if ((r & 7) == 7) {
+            say("%s", line);
+            o = 0;
+        }
+        VIDEO_WaitVSync();
+        wtb_alive();
+    }
+    say("bits: %d registers have writable bits", rw);
+}
+
 static void dump(void) {
     u8 v[1];
     say("dump: I2C ident %u (released SDA reads %s)", (unsigned)i2c_ident, i2c_ident ? "high" : "low");
@@ -376,9 +411,26 @@ static void dump(void) {
         "nd = read address not ACKed)", answered);
 }
 
+// Video mode: 480p when a component cable is in (as the games run), else the console's own;
+// "mode 480i" / "mode 480p" in wtb.txt or cfg=mode=... overrides. Read before wtb_init so the
+// picture is up first; the arguments are scanned for it directly.
+static GXRModeObj *pick_mode(int argc, char **argv) {
+    const char *want = NULL;
+    for (int i = 1; i < argc; i++)
+        if (argv[i] && strncmp(argv[i], "cfg=mode=", 9) == 0)
+            want = argv[i] + 9;
+    GXRModeObj *pref = VIDEO_GetPreferredMode(NULL);
+    const bool pal = pref->viTVMode >> 2 == VI_PAL;
+    if (want && strcmp(want, "480i") == 0)
+        return pal ? &TVEurgb60Hz480IntDf : &TVNtsc480IntDf;
+    if ((want && strcmp(want, "480p") == 0) || (!want && VIDEO_HaveComponentCable()))
+        return pal ? &TVEurgb60Hz480Prog : &TVNtsc480Prog;
+    return pref;
+}
+
 int main(int argc, char **argv) {
     VIDEO_Init();
-    rmode = VIDEO_GetPreferredMode(NULL);
+    rmode = pick_mode(argc, argv);
     xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
     VIDEO_Configure(rmode);
     VIDEO_SetNextFramebuffer(xfb);
@@ -398,13 +450,15 @@ int main(int argc, char **argv) {
     i2c_check();
 
     unsigned hold = 3000;
-    bool do_dump = false, keep = false;
+    bool do_dump = false, do_bits = false, keep = false;
     for (int i = 0; i < wtb_cfg_count(); i++) {
         const char *n = wtb_cfg_name(i), *v = wtb_cfg_value(i);
         if (strcmp(n, "hold") == 0)
             hold = (unsigned)atoi(v);
         else if (strcmp(n, "dump") == 0)
             do_dump = atoi(v) != 0;
+        else if (strcmp(n, "bits") == 0)
+            do_bits = atoi(v) != 0;
         else if (strcmp(n, "keep") == 0)
             keep = atoi(v) != 0;
         else if (strcmp(n, "w") == 0 && nsteps < MAX_STEPS) {
@@ -434,6 +488,10 @@ int main(int argc, char **argv) {
 
     if (do_dump)
         dump();
+    if (do_bits) {
+        bitmap();
+        ave_baseline();
+    }
 
     say("step 0 at %u ms: baseline (libogc's encoder settings)", ms_now());
     ave_baseline();
@@ -452,7 +510,18 @@ int main(int argc, char **argv) {
             const int got = ave_write(steps[s].reg[i], steps[s].data[i], steps[s].len[i]);
             o += (size_t)snprintf(acks + o, sizeof(acks) - o, "%s%d/%d", i ? "," : "", got, steps[s].len[i] + 2);
         }
-        say("step %d at %u ms: %s (acks %s)", s + 1, ms_now(), t, acks);
+        char rb[96];
+        size_t r = 0;
+        rb[0] = 0;
+        for (int i = 0; i < steps[s].n; i++) {
+            u8 v[8];
+            if (ave_read(steps[s].reg[i], v, steps[s].len[i]) == steps[s].len[i]) {
+                r += (size_t)snprintf(rb + r, sizeof(rb) - r, "%s%02X:", i ? "+" : "", steps[s].reg[i]);
+                for (int k = 0; k < steps[s].len[i]; k++)
+                    r += (size_t)snprintf(rb + r, sizeof(rb) - r, "%02X", v[k]);
+            }
+        }
+        say("step %d at %u ms: %s (acks %s, reads back %s)", s + 1, ms_now(), t, acks, rb[0] ? rb : "?");
         hold_for(hold);
     }
 
