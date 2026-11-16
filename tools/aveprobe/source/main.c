@@ -17,6 +17,8 @@
 //                    steps run in the order given.
 //   sweep=RR:A-B     one step per value A..B (hex) written to register RR
 //   keep=1           don't restore libogc's encoder settings between steps
+//   reset=0          don't write the power-on values of the registers libogc doesn't set at start
+//                    (default: do; the AVE keeps every register until power-off)
 // Step 0 is always the baseline (libogc's settings). After the last step the baseline is
 // restored and the tool exits to the Homebrew Channel.
 //
@@ -211,6 +213,25 @@ static bool stored_reg(int r) {
 }
 static u8 saved[0x80];
 static bool saved_ok;
+
+// The AVE keeps every register until power-off, and libogc's VIDEO_Init rewrites only its own
+// (~15); anything else a test changed stays for every later program. So the tool starts by
+// writing the power-on values of the stored registers libogc leaves alone (read on the bench
+// Wii right after a power cycle, ave-first: all 0). reset=0 skips it.
+static void ave_power_on_defaults(void) {
+    static const u8 libogc_sets[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x08, 0x09, 0x0A, 0x6A, 0x71, 0x72,
+                                     0x7A, 0x7B, 0x7C, 0x7D};
+    const u8 zero = 0;
+    for (int r = 0; r < 0x80; r++) {
+        if (!stored_reg(r) || (r >= 0x10 && r <= 0x30) || (r >= 0x40 && r <= 0x59))
+            continue;  // gamma and Macrovision blocks: libogc writes them whole
+        bool set = false;
+        for (unsigned i = 0; i < sizeof(libogc_sets); i++)
+            set |= libogc_sets[i] == r;
+        if (!set)
+            ave_write((u8)r, &zero, 1);
+    }
+}
 
 static void ave_save(void) {
     saved_ok = true;
@@ -484,7 +505,7 @@ int main(int argc, char **argv) {
     i2c_check();
 
     unsigned hold = 3000;
-    bool do_dump = false, do_bits = false, keep = false;
+    bool do_dump = false, do_bits = false, keep = false, do_reset = true;
     for (int i = 0; i < wtb_cfg_count(); i++) {
         const char *n = wtb_cfg_name(i), *v = wtb_cfg_value(i);
         if (strcmp(n, "hold") == 0)
@@ -493,6 +514,8 @@ int main(int argc, char **argv) {
             do_dump = atoi(v) != 0;
         else if (strcmp(n, "bits") == 0)
             do_bits = atoi(v) != 0;
+        else if (strcmp(n, "reset") == 0)
+            do_reset = atoi(v) != 0;
         else if (strcmp(n, "keep") == 0)
             keep = atoi(v) != 0;
         else if (strcmp(n, "w") == 0 && nsteps < MAX_STEPS) {
@@ -520,6 +543,11 @@ int main(int argc, char **argv) {
         rmode->xfbHeight, (rmode->viTVMode & 3) == VI_PROGRESSIVE ? "p" : (rmode->viTVMode & 3) == VI_NON_INTERLACE ? "p (240p-style)" : "i",
         (unsigned)VIDEO_GetCurrentTvMode(), (unsigned)(vi[55] & 1), nsteps, hold, keep ? ", writes kept" : "");
 
+    if (do_reset) {
+        ave_power_on_defaults();
+        ave_libogc();
+        say("reset: power-on values written to the registers libogc doesn't set (07, 0D-0F, 32-37, 3A-3E)");
+    }
     ave_save();
     say("saved the stored registers' start-up values%s", saved_ok ? "" : " (NOT all readable: restores only libogc's)");
     if (do_dump)
