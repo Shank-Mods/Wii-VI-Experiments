@@ -21,13 +21,19 @@ shows a panel with every value. **B** again goes back to pattern browsing.
 
 | Control | Tuning |
 | --- | --- |
-| Up / Down | pick a value |
+| Up / Down | pick a value (the last entry, RESET, puts the edits back to the mode's timing) |
 | Left / Right | nudge it by the step (hold to repeat gently, ~9 steps/s after 0.4 s) |
 | 1 / Y | step 1 or 8 |
 | 2 / X | write a SNAPSHOT line to the log right away |
-| A | measure the real line and field rate |
-| - / Z | reset to the mode's own timing |
+| A | measure the real line and field rate of what is on screen |
+| - / Z | edits ON / OFF (also works outside tuning) |
 | START / HOME / + | back to the menu (safe mode, everything restored) |
+
+Edits start OFF: the VI keeps running the mode's own, stable timing while you change values
+on the panel. **Z** (GC) or **-** (Wii Remote) switches the edited timing on, and again back
+to the mode's timing, so a whole new mode (for example 720p timing inside the 480p option)
+can be set up first and then tried. While edits are ON, every nudge is applied
+immediately. The panel's header shows EDITS ON / OFF.
 
 The values are the raw register fields, so a combination that works can be copied as is:
 

@@ -621,6 +621,7 @@ static const char *pat_name[NPATS] = {
 static const Calc *rc;      // calc of the mode being rendered
 static int pat = 0;
 static bool show_info = true;
+static bool edits_on;        // live-tuning edits currently applied (see tuning below)
 static Meas cur_meas;
 static u32 motion_t = 0;
 
@@ -708,7 +709,7 @@ static void draw_info(void)
     const Calc *c = rc;
     int sx = txs(), sy = tys();
     char l1[64], l2[64], l3[64], l4[64];
-    snprintf(l1, sizeof(l1), "%s  [%s]", c->m->name, c->m->aspect);
+    snprintf(l1, sizeof(l1), "%s  [%s]%s", c->m->name, c->m->aspect, edits_on ? "  EDITS ON" : "");
     snprintf(l2, sizeof(l2), "P%d/%d %s  (D-pad, A=info)", pat + 1, NPATS, pat_name[pat]);
     snprintf(l3, sizeof(l3), "%ux%u%c  clk %s", c->A, c->frameH, c->il ? 'i' : 'p', clocks[c->m->clk].desc);
     if (cur_meas.valid)
@@ -738,6 +739,10 @@ static const char *pname[NPARAM] = { "HLW", "HSY", "HBE", "HBS", "HCS", "HCE", "
                                      "PRB", "PSB", "BS", "BE", "CLKF", "V", "VICLK" };
 static bool tuning;
 static int tsel, tstep = 1;
+// Edits go into `edit`. Z / minus switches between showing them (edits_on) and the mode's
+// own, stable timing, so values can be set up without fighting a rolling picture.
+static Calc edit;
+#define T_RESET NPARAM          // extra list entry: Left/Right resets the edits
 
 static int tget(const Calc *c, int i)
 {
@@ -801,17 +806,20 @@ static void tlog(const Calc *c, const char *tag)
 
 static void draw_tune(void)
 {
-    const Calc *c = rc;
+    const Calc *c = &edit;
     int sx = txs(), sy = tys();
     float x = 8 * sx, y = 6 * sy, lh = 16 * sy, cw = 8 * sx;
-    int rows = (NPARAM + 1) / 2;
+    int rows = (NPARAM + 2) / 2;
     rect(x - 4 * sx, y - 3 * sy, x + 52 * cw, y + (rows + 4) * lh + 3 * sy, 0, 0, 0);
     char buf[80];
-    snprintf(buf, sizeof(buf), "TUNE %s  step %d", c->m->name, tstep);
+    snprintf(buf, sizeof(buf), "TUNE %s  step %d  ", rc->m->name, tstep);
     text(x, y, sx, sy, buf, 0, 255, 255);
-    for (int i = 0; i < NPARAM; i++) {
+    if (edits_on) text(x + strlen(buf) * cw, y, sx, sy, "EDITS ON", 0, 255, 0);
+    else          text(x + strlen(buf) * cw, y, sx, sy, "EDITS OFF", 255, 160, 0);
+    for (int i = 0; i <= NPARAM; i++) {
         int r = i / 2, col = i % 2;
-        snprintf(buf, sizeof(buf), "%c%-5s %5d", i == tsel ? '>' : ' ', pname[i], tget(c, i));
+        if (i == T_RESET) snprintf(buf, sizeof(buf), "%cRESET (L/R)", i == tsel ? '>' : ' ');
+        else snprintf(buf, sizeof(buf), "%c%-5s %5d", i == tsel ? '>' : ' ', pname[i], tget(c, i));
         bool sel = i == tsel;
         text(x + col * 15 * cw, y + (r + 1) * lh, sx, sy, buf, sel ? 255 : 200, sel ? 255 : 200, sel ? 0 : 200);
     }
@@ -828,9 +836,9 @@ static void draw_tune(void)
                  (unsigned long)(cur_meas.field_mhz / 1000), (unsigned long)(cur_meas.field_mhz % 1000),
                  (unsigned long)cur_meas.maxline);
     else
-        snprintf(buf, sizeof(buf), "meas: press A to measure");
+        snprintf(buf, sizeof(buf), "meas: press A (measures what is on screen)");
     text(x, yy + lh, sx, sy, buf, 160, 255, 160);
-    text(x, yy + 2 * lh, sx, sy, "U/D pick  L/R adjust  1/Y step  2/X log  -/Z reset", 160, 160, 160);
+    text(x, yy + 2 * lh, sx, sy, "U/D pick L/R adjust 1/Y step 2/X log -/Z edits on/off", 160, 160, 160);
 }
 
 static void draw_pattern(void)
@@ -1031,15 +1039,26 @@ static void run_mode(int idx)
     front ^= 1; back ^= 1;
 
     tuning = false; tsel = 0; tstep = 1;
-    static Calc def; def = c;                     // the mode's own timing, for reset
+    static Calc def; def = c;                     // the mode's own timing
+    edit = c; edits_on = false;
     u32 rep_dir = 0; u64 rep_t0 = 0, rep_last = 0;
     while (1) {
         u32 b = read_buttons();
-        if (b & BTN_BACK) { if (tuning) tlog(&c, "TUNE FINAL"); logf_("  back pressed"); break; }
+        if (b & BTN_BACK) { tlog(&edit, edits_on ? "TUNE FINAL (applied)" : "TUNE FINAL (not applied)"); logf_("  back pressed"); break; }
         bool redraw = false;
         if (b & BTN_B) {
             tuning = !tuning; redraw = true;
-            tlog(&c, tuning ? "TUNE START" : "TUNE END");
+            tlog(&edit, tuning ? "TUNE START" : "TUNE END");
+        }
+        if (b & BTN_RESET) {                      // Z / minus: edited timing on / off
+            edits_on = !edits_on;
+            Calc target = edits_on ? edit : def;
+            bool clk = c.clkf != target.clkf || c.vdiv != target.vdiv || c.viclk != target.viclk;
+            bool size = c.acv != target.acv;
+            c = target;
+            logf_("  %s", edits_on ? "EDITS ON" : "EDITS OFF (mode's own timing)");
+            tune_apply(&c, clk, size, &front, &back);
+            continue;
         }
         if (tuning) {
             // D-pad with gentle auto-repeat: 0.4 s before repeating, then ~9 steps/s
@@ -1053,38 +1072,48 @@ static void run_mode(int idx)
                     ev = held & rep_dir; rep_last = now; repeat = true;
                 }
             } else rep_dir = 0;
-            if (ev & BTN_UP)   { tsel = (tsel + NPARAM - 1) % NPARAM; redraw = true; }
-            if (ev & BTN_DOWN) { tsel = (tsel + 1) % NPARAM; redraw = true; }
+            if (ev & BTN_UP)   { tsel = (tsel + NPARAM) % (NPARAM + 1); redraw = true; }
+            if (ev & BTN_DOWN) { tsel = (tsel + 1) % (NPARAM + 1); redraw = true; }
             int d = (ev & BTN_RIGHT) ? 1 : (ev & BTN_LEFT) ? -1 : 0;
-            if (d && !(repeat && tclock(tsel))) {          // clock values never auto-repeat
-                int lo, hi, old = tget(&c, tsel);
-                tlimits(&c, tsel, &lo, &hi);
+            if (d && tsel == T_RESET) {
+                if (!repeat) {
+                    edit = def;
+                    logf_("  tune: edits reset to the mode's own timing");
+                    if (edits_on) {
+                        bool clk = c.clkf != def.clkf || c.vdiv != def.vdiv || c.viclk != def.viclk;
+                        bool size = c.acv != def.acv;
+                        c = def;
+                        tune_apply(&c, clk, size, &front, &back);
+                        continue;
+                    }
+                    redraw = true;
+                }
+            } else if (d && !(repeat && tclock(tsel))) {   // clock values never auto-repeat
+                int lo, hi, old = tget(&edit, tsel);
+                tlimits(&edit, tsel, &lo, &hi);
                 int nv = old + d * (tclock(tsel) ? 1 : tstep);
                 if (nv < lo) nv = lo;
                 if (nv > hi) nv = hi;
                 if (nv != old) {
-                    Calc trial = c; tput(&trial, tsel, nv); recalc(&trial);
+                    Calc trial = edit; tput(&trial, tsel, nv); recalc(&trial);
                     if (trial.f_khz > 540000) {
                         logf_("  tune: refused %s=%d (F %lu kHz is above the 540 MHz the VI was verified at)",
                               pname[tsel], nv, (unsigned long)trial.f_khz);
                     } else {
-                        tput(&c, tsel, nv);
-                        tune_apply(&c, tclock(tsel), tsel == P_ACV, &front, &back);
-                        redraw = false;
-                        continue;
+                        edit = trial;
+                        if (edits_on) {                    // shown live: apply it now
+                            bool clk = tclock(tsel), size = tsel == P_ACV;
+                            c = edit;
+                            tune_apply(&c, clk, size, &front, &back);
+                            continue;
+                        }
+                        tlog(&edit, "edit (not applied)");
+                        redraw = true;                     // just update the panel
                     }
                 }
             }
             if (b & BTN_MARK_BAD) { tstep = tstep == 1 ? 8 : 1; redraw = true; }
-            if (b & BTN_MARK_OK)  { tlog(&c, "SNAPSHOT"); log_flush(); }
-            if (b & BTN_RESET) {
-                bool clk = c.clkf != def.clkf || c.vdiv != def.vdiv || c.viclk != def.viclk;
-                bool size = c.acv != def.acv;
-                c = def;
-                logf_("  tune: reset to the mode's own timing");
-                tune_apply(&c, clk, size, &front, &back);
-                continue;
-            }
+            if (b & BTN_MARK_OK)  { tlog(&edit, edits_on ? "SNAPSHOT (applied)" : "SNAPSHOT (not applied)"); log_flush(); }
             if (b & BTN_A) {
                 cur_meas = measure();
                 tlog(&c, "MEASURED");
