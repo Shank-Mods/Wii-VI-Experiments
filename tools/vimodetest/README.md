@@ -14,6 +14,44 @@ safe mode from any point.
 | 1 (Wii Remote) / Y (GC) | mark "colors look wrong" in the log | same, for this mode |
 | 2 (Wii Remote) / X (GC) | mark "colors look right" in the log | same, for this mode |
 
+### Live timing tuning
+
+In a test mode, **B** (Wii Remote or GC pad) switches the D-pad to timing adjustment and
+shows a panel with every value. **B** again goes back to pattern browsing.
+
+| Control | Tuning |
+| --- | --- |
+| Up / Down | pick a value |
+| Left / Right | nudge it by the step (hold to repeat gently, ~9 steps/s after 0.4 s) |
+| 1 / Y | step 1 or 8 |
+| 2 / X | write a SNAPSHOT line to the log right away |
+| A | measure the real line and field rate |
+| - / Z | reset to the mode's own timing |
+| START / HOME / + | back to the menu (safe mode, everything restored) |
+
+The values are the raw register fields, so a combination that works can be copied as is:
+
+| Name | Register | Meaning |
+| --- | --- | --- |
+| HLW | HTR0 | half-line width: a line is 2 x HLW clocks |
+| HSY | HTR1 | hsync width |
+| HBE / HBS | HTR1 | picture starts HBE clocks into the line, blanking restarts at HLW + HBS |
+| HCS / HCE | HTR0 | colour-burst window start / end |
+| EQU | VTR | vsync / equalisation length (half-lines, x3) |
+| ACV | VTR | active lines per field |
+| PRB / PSB | VTO / VTE | blank half-lines before / after the picture (even field +1 / -1 in interlace) |
+| BS / BE | BBEI / BBOI | burst blanking start / end (even field +1 / -1 in interlace) |
+| CLKF / V | PLL 0x1C4 / 0x1C8 | F = 27 MHz x (CLKF + 1) / (2 x V); one CLKF step is about 1.9 MHz at V = 7 |
+| VICLK | 0x6C | 1 = F straight through, 0 = F / 2 |
+
+Timing changes are written live just after a retrace without stopping the VI, so a
+display that has locked can stay locked while you nudge. Clock changes (CLKF, V, VICLK)
+go through the full stop / relock / restart sequence, never auto-repeat, and are refused
+above 540 MHz. Limits found on hardware are enforced (PRB >= 1, EQU >= 1, CLKF 24-99). The
+panel shows the resulting clock, line rate, field rate and half-lines per field (N, red
+flag above 2047). Every change is logged with all values and the resulting PLL register
+words.
+
 The menu has a color check line (RED GREEN BLUE YELLOW CYAN MAGENTA, each in its own
 color). If Cb and Cr get swapped somewhere in the chain, RED turns bluish, BLUE reddish
 and YELLOW/CYAN trade places. Marking it with 1/Y puts a line in the log with how many

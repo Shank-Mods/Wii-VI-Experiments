@@ -131,9 +131,29 @@ typedef struct {
     u16 N;
     u16 HLW, HBE, HBS, HSY, hcs, hce;
     u16 prbO, prbE, psbO, psbE, bsO, bsE, beO, beE;
+    u16 acv; u8 equ;                  // VTR
+    u16 clkf; u8 vdiv, viclk;         // PLL: F = 27 MHz x (CLKF+1) / (2 x V); VICLK=0 halves it
+    u32 f_khz;                        // effective VI clock (after VICLK)
     u32 exp_line_hz, exp_field_mhz;   // expected rates
     u32 xfb_bytes;
 } Calc;
+
+// Everything that follows from the raw values (also used after each live-tuning change).
+static void recalc(Calc *c)
+{
+    c->prbE = c->prbO + c->il;
+    c->psbE = c->psbO - c->il;
+    c->bsE = c->bsO + c->il;
+    c->beE = c->beO - c->il;
+    c->N = 3 * c->equ + c->prbO + 2 * c->acv + c->psbO;
+    c->frameH = c->il ? 2 * c->acv : c->acv;
+    c->xfb_bytes = (u32)c->A * c->frameH * 2;
+    u32 f = (u32)(27000ull * (c->clkf + 1) / (2u * c->vdiv));
+    c->f_khz = c->viclk ? f : f / 2;
+    u32 p_hz = c->f_khz * 500u;                        // pixel rate = F / 2
+    c->exp_line_hz = p_hz / (2u * c->HLW);
+    c->exp_field_mhz = c->N ? (u32)((u64)c->exp_line_hz * 2000ull / c->N) : 0;
+}
 
 static void calc_mode(const Mode *m, Calc *c)
 {
@@ -165,11 +185,12 @@ static void calc_mode(const Mode *m, Calc *c)
     c->bsO = v->bs ? v->bs : 2 * v->equ;
     c->bsE = c->bsO + v->il;
     c->beO = v->be ? v->be : v->N - v->equ + v->il;
-    c->beE = c->beO - v->il;
-    u32 p_hz = clocks[m->clk].khz * 500u;            // F/2 in Hz
-    c->exp_line_hz = p_hz / h->T;
-    c->exp_field_mhz = (u32)((u64)c->exp_line_hz * 2000ull / v->N);
-    c->xfb_bytes = (u32)h->A * c->frameH * 2;
+    c->acv = v->acv;
+    c->equ = v->equ;
+    c->clkf = (u16)(4 * clocks[m->clk].nfb - 1);       // byte1 = Nfb-1, fine bits = 3 (stock)
+    c->vdiv = clocks[m->clk].v;
+    c->viclk = clocks[m->clk].viclk;
+    recalc(c);
 }
 
 // ======================================================================= state
@@ -258,15 +279,17 @@ static void set_fbb(const Calc *c, void *fb)
     VI[0x26 / 2] = (u16)(b & 0xFFFF);
 }
 
-static u32 pll_1c4(const Clock *k)
+
+static u32 calc_1c4(const Calc *c)
 {
-    if (k->nfb == 7 && k->v == 7) return boot1c4;
-    return (boot1c4 & ~0x0000FF00u) | ((u32)(k->nfb - 1) << 8);    // byte2 never touched
+    if (c->clkf == 27 && c->vdiv == 7) return boot1c4;
+    // byte1 = CLKF[9:2], byte0 bits 6-7 = CLKF[1:0]; byte0 bits 0-5 and byte2 never touched
+    return (boot1c4 & ~0x0000FFC0u) | ((u32)(c->clkf >> 2) << 8) | ((u32)(c->clkf & 3) << 6);
 }
-static u32 pll_1c8(const Clock *k)
+static u32 calc_1c8(const Calc *c)
 {
-    if (k->nfb == 7 && k->v == 7) return boot1c8;
-    return (boot1c8 & ~0x00F00000u) | ((u32)k->v << 20);
+    if (c->clkf == 27 && c->vdiv == 7) return boot1c8;
+    return (boot1c8 & ~0x00F00000u) | ((u32)c->vdiv << 20);
 }
 
 // ---- register images ---------------------------------------------------------------
@@ -301,12 +324,11 @@ static void img_set(VIImage *im, u8 off, u16 v) { int i = img_index(off); if (i 
 
 static void build_image(const Calc *c, void *fb, VIImage *im)
 {
-    const VTim *v = c->m->v;
     *im = safe_img;                               // filters, DI1-3, scaler width etc.
     u16 wpl = c->A / 16;
     u16 std = c->il ? wpl * 2 : wpl;
-    img_set(im, 0x6C, clocks[c->m->clk].viclk);
-    img_set(im, 0x00, (u16)((v->acv << 4) | v->equ));
+    img_set(im, 0x6C, c->viclk);
+    img_set(im, 0x00, (u16)((c->acv << 4) | c->equ));
     img_set(im, 0x04, (u16)((c->hcs << 8) | c->hce));
     img_set(im, 0x06, c->HLW);
     img_set(im, 0x08, (u16)(((c->HBE >> 9) & 1) | (c->HBS << 1)));
@@ -390,12 +412,23 @@ static VIImage cur_img;
 
 static void program_vi(const Calc *c, void *fb)
 {
-    const Clock *k = &clocks[c->m->clk];
     build_image(c, fb, &cur_img);
     log_image("write", &cur_img);
-    logf_("  PLL 0x1C4=%08X 0x1C8=%08X  DTV(0x6E)=%04X", (unsigned)pll_1c4(k), (unsigned)pll_1c8(k), VI[0x6E / 2]);
+    logf_("  PLL 0x1C4=%08X 0x1C8=%08X  DTV(0x6E)=%04X", (unsigned)calc_1c4(c), (unsigned)calc_1c8(c), VI[0x6E / 2]);
     log_flush();                                   // write-ahead
-    apply_image(&cur_img, pll_1c4(k), pll_1c8(k));
+    apply_image(&cur_img, calc_1c4(c), calc_1c8(c));
+}
+
+// Live change of timing only (same clock): write the new image straight after a retrace,
+// without stopping the VI, so a display that is locked can stay locked while you nudge.
+static void program_vi_live(const Calc *c, void *fb)
+{
+    build_image(c, fb, &cur_img);
+    wait_retrace(100);
+    u32 l; _CPU_ISR_Disable(l);
+    for (u32 i = 0; i < NIMG; i++) VI[img_regs[i] / 2] = cur_img.v[i];
+    VI[0x02 / 2] = cur_img.dcr;
+    _CPU_ISR_Restore(l);
 }
 
 static void restore_safe(void)
@@ -694,6 +727,112 @@ static void draw_info(void)
     for (int i = 0; i < 4; i++) text(x, y + i * 16 * sy, sx, sy, ls[i], 255, 255, 255);
 }
 
+
+// ======================================================================= live tuning
+// B in a test mode switches the D-pad to timing adjustment: Up/Down picks a register value,
+// Left/Right nudges it by the current step (1 by default). Every value shown is the raw
+// number written to the VI / PLL, so a working combination can be copied straight out.
+enum { P_HLW, P_HSY, P_HBE, P_HBS, P_HCS, P_HCE, P_EQU, P_ACV, P_PRB, P_PSB, P_BS, P_BE,
+       P_CLKF, P_V, P_VICLK, NPARAM };
+static const char *pname[NPARAM] = { "HLW", "HSY", "HBE", "HBS", "HCS", "HCE", "EQU", "ACV",
+                                     "PRB", "PSB", "BS", "BE", "CLKF", "V", "VICLK" };
+static bool tuning;
+static int tsel, tstep = 1;
+
+static int tget(const Calc *c, int i)
+{
+    switch (i) {
+    case P_HLW: return c->HLW;   case P_HSY: return c->HSY;   case P_HBE: return c->HBE;
+    case P_HBS: return c->HBS;   case P_HCS: return c->hcs;   case P_HCE: return c->hce;
+    case P_EQU: return c->equ;   case P_ACV: return c->acv;   case P_PRB: return c->prbO;
+    case P_PSB: return c->psbO;  case P_BS:  return c->bsO;   case P_BE:  return c->beO;
+    case P_CLKF: return c->clkf; case P_V:   return c->vdiv;  case P_VICLK: return c->viclk;
+    }
+    return 0;
+}
+static void tput(Calc *c, int i, int v)
+{
+    switch (i) {
+    case P_HLW: c->HLW = v; break;   case P_HSY: c->HSY = v; break;   case P_HBE: c->HBE = v; break;
+    case P_HBS: c->HBS = v; break;   case P_HCS: c->hcs = v; break;   case P_HCE: c->hce = v; break;
+    case P_EQU: c->equ = v; break;   case P_ACV: c->acv = v; break;   case P_PRB: c->prbO = v; break;
+    case P_PSB: c->psbO = v; break;  case P_BS:  c->bsO = v; break;   case P_BE:  c->beO = v; break;
+    case P_CLKF: c->clkf = v; break; case P_V:   c->vdiv = v; break;  case P_VICLK: c->viclk = v; break;
+    }
+}
+static int tmax_acv(const Calc *c)
+{
+    int m = (int)(xfb_max / (2u * c->A)) / (c->il ? 2 : 1);   // keep the fetch inside the buffer
+    return m > 1023 ? 1023 : m;
+}
+// Register field widths, plus the limits found on hardware: PRB >= 1 (0 adds 2048 half-lines),
+// EQU >= 1, PSB >= 1 in interlace (the even field uses PSB-1), CLKF 24..99 (VCO 675..2700 MHz,
+// the range seen to lock), V 1..15.
+static void tlimits(const Calc *c, int i, int *lo, int *hi)
+{
+    *lo = 0; *hi = 1023;
+    switch (i) {
+    case P_HLW: *lo = 32; break;
+    case P_HSY: *lo = 1; *hi = 127; break;
+    case P_HBE: case P_HBS: *lo = 1; break;
+    case P_HCS: case P_HCE: *hi = 127; break;
+    case P_EQU: *lo = 1; *hi = 15; break;
+    case P_ACV: *lo = 1; *hi = tmax_acv(c); break;
+    case P_PRB: *lo = 1; *hi = 1023 - c->il; break;   // the even field uses PRB+1 in interlace
+    case P_PSB: *lo = c->il; break;
+    case P_BS:  *hi = 31 - c->il; break;               // even field: BS+1, BE-1
+    case P_BE:  *lo = c->il; *hi = 2047; break;
+    case P_CLKF: *lo = 24; *hi = 99; break;
+    case P_V:   *lo = 1; *hi = 15; break;
+    case P_VICLK: *hi = 1; break;
+    }
+}
+static bool tclock(int i) { return i == P_CLKF || i == P_V || i == P_VICLK; }
+
+static void tlog(const Calc *c, const char *tag)
+{
+    logf_("  %s HLW=%u HSY=%u HBE=%u HBS=%u HCS=%u HCE=%u EQU=%u ACV=%u PRB=%u/%u PSB=%u/%u BS=%u/%u BE=%u/%u "
+          "CLKF=%u V=%u VICLK=%u | F=%lu kHz line=%lu Hz field=%lu mHz N=%u 0x1C4=%08X 0x1C8=%08X",
+          tag, c->HLW, c->HSY, c->HBE, c->HBS, c->hcs, c->hce, c->equ, c->acv, c->prbO, c->prbE,
+          c->psbO, c->psbE, c->bsO, c->bsE, c->beO, c->beE, c->clkf, c->vdiv, c->viclk,
+          (unsigned long)c->f_khz, (unsigned long)c->exp_line_hz, (unsigned long)c->exp_field_mhz, c->N,
+          (unsigned)calc_1c4(c), (unsigned)calc_1c8(c));
+}
+
+static void draw_tune(void)
+{
+    const Calc *c = rc;
+    int sx = txs(), sy = tys();
+    float x = 8 * sx, y = 6 * sy, lh = 16 * sy, cw = 8 * sx;
+    int rows = (NPARAM + 1) / 2;
+    rect(x - 4 * sx, y - 3 * sy, x + 52 * cw, y + (rows + 4) * lh + 3 * sy, 0, 0, 0);
+    char buf[80];
+    snprintf(buf, sizeof(buf), "TUNE %s  step %d", c->m->name, tstep);
+    text(x, y, sx, sy, buf, 0, 255, 255);
+    for (int i = 0; i < NPARAM; i++) {
+        int r = i / 2, col = i % 2;
+        snprintf(buf, sizeof(buf), "%c%-5s %5d", i == tsel ? '>' : ' ', pname[i], tget(c, i));
+        bool sel = i == tsel;
+        text(x + col * 15 * cw, y + (r + 1) * lh, sx, sy, buf, sel ? 255 : 200, sel ? 255 : 200, sel ? 0 : 200);
+    }
+    float yy = y + (rows + 1) * lh;
+    snprintf(buf, sizeof(buf), "F %lu.%03lu MHz  line %lu.%02lu kHz  %lu.%02lu Hz  N %u%s",
+             (unsigned long)(c->f_khz / 1000), (unsigned long)(c->f_khz % 1000),
+             (unsigned long)(c->exp_line_hz / 1000), (unsigned long)(c->exp_line_hz % 1000 / 10),
+             (unsigned long)(c->exp_field_mhz / 1000), (unsigned long)(c->exp_field_mhz % 1000 / 10),
+             c->N, c->N > 2047 ? " >2047!" : "");
+    text(x, yy, sx, sy, buf, 255, 255, 255);
+    if (cur_meas.valid)
+        snprintf(buf, sizeof(buf), "meas %lu.%02lu kHz  %lu.%03lu Hz  DPV %lu",
+                 (unsigned long)(cur_meas.line_hz / 1000), (unsigned long)(cur_meas.line_hz % 1000 / 10),
+                 (unsigned long)(cur_meas.field_mhz / 1000), (unsigned long)(cur_meas.field_mhz % 1000),
+                 (unsigned long)cur_meas.maxline);
+    else
+        snprintf(buf, sizeof(buf), "meas: press A to measure");
+    text(x, yy + lh, sx, sy, buf, 160, 255, 160);
+    text(x, yy + 2 * lh, sx, sy, "U/D pick  L/R adjust  1/Y step  2/X log  -/Z reset", 160, 160, 160);
+}
+
 static void draw_pattern(void)
 {
     float W = rc->logW, H = rc->frameH;
@@ -711,7 +850,7 @@ static void draw_pattern(void)
     case 10: rect(0, 0, W, H, 0, 0, 0); break;
     case 11: pat_motion(); break;
     }
-    draw_info();
+    if (tuning) draw_tune(); else draw_info();
 }
 
 // Split [0,total) into n near-equal chunks, each a multiple of 'align' (last takes the rest).
@@ -806,6 +945,9 @@ static void clear_fb(void *fb, u32 bytes)
 #define BTN_HOME 256
 #define BTN_MARK_BAD 512
 #define BTN_MARK_OK 1024
+#define BTN_B     2048
+#define BTN_RESET 4096
+static u32 held;   // direction buttons currently held (BTN_UP/DOWN/LEFT/RIGHT)
 
 static u32 read_buttons(void)
 {
@@ -821,6 +963,14 @@ static u32 read_buttons(void)
     if (w & WPAD_BUTTON_HOME) b |= BTN_BACK | BTN_HOME;
     if ((w & WPAD_BUTTON_1) || (g & PAD_BUTTON_Y)) b |= BTN_MARK_BAD;
     if ((w & WPAD_BUTTON_2) || (g & PAD_BUTTON_X)) b |= BTN_MARK_OK;
+    if ((w & WPAD_BUTTON_B) || (g & PAD_BUTTON_B)) b |= BTN_B;
+    if ((w & WPAD_BUTTON_MINUS) || (g & PAD_TRIGGER_Z)) b |= BTN_RESET;
+    u32 wh = WPAD_ButtonsHeld(0), gh = PAD_ButtonsHeld(0);
+    held = 0;
+    if ((wh & WPAD_BUTTON_UP) || (gh & PAD_BUTTON_UP)) held |= BTN_UP;
+    if ((wh & WPAD_BUTTON_DOWN) || (gh & PAD_BUTTON_DOWN)) held |= BTN_DOWN;
+    if ((wh & WPAD_BUTTON_LEFT) || (gh & PAD_BUTTON_LEFT)) held |= BTN_LEFT;
+    if ((wh & WPAD_BUTTON_RIGHT) || (gh & PAD_BUTTON_RIGHT)) held |= BTN_RIGHT;
     if (b & (BTN_RIGHT | BTN_DOWN)) b |= BTN_NEXT;
     if (b & (BTN_LEFT | BTN_UP)) b |= BTN_PREV;
     return b;
@@ -828,6 +978,25 @@ static u32 read_buttons(void)
 
 // ======================================================================= test mode
 static int last_mode = -1, switches = 0;
+
+// Apply a tuning change: redraw the off-screen buffer (the panel shows the new values),
+// then either rewrite the timing live (same clock) or do the full stop/relock/restart
+// sequence (clock changed), and show the new buffer.
+static void tune_apply(Calc *c, bool clock_changed, bool size_changed, int *front, int *back)
+{
+    recalc(c);
+    memset(&cur_meas, 0, sizeof(cur_meas));
+    if (size_changed) { clear_fb(xfb[0], c->xfb_bytes); clear_fb(xfb[1], c->xfb_bytes); }
+    render_frame(xfb[*back]);
+    tlog(c, clock_changed ? "tune(clock)" : "tune");
+    if (clock_changed) {
+        program_vi(c, xfb[*back]);
+        for (int i = 0; i < 3; i++) wait_retrace(150);
+    } else {
+        program_vi_live(c, xfb[*back]);
+    }
+    *front ^= 1; *back ^= 1;
+}
 
 static void run_mode(int idx)
 {
@@ -861,16 +1030,76 @@ static void run_mode(int idx)
     { u32 l; _CPU_ISR_Disable(l); set_fbb(&c, xfb[back]); _CPU_ISR_Restore(l); }
     front ^= 1; back ^= 1;
 
+    tuning = false; tsel = 0; tstep = 1;
+    static Calc def; def = c;                     // the mode's own timing, for reset
+    u32 rep_dir = 0; u64 rep_t0 = 0, rep_last = 0;
     while (1) {
         u32 b = read_buttons();
-        if (b & BTN_BACK) { logf_("  back pressed"); break; }
+        if (b & BTN_BACK) { if (tuning) tlog(&c, "TUNE FINAL"); logf_("  back pressed"); break; }
         bool redraw = false;
-        if (b & BTN_NEXT) { pat = (pat + 1) % NPATS; redraw = true; }
-        if (b & BTN_PREV) { pat = (pat + NPATS - 1) % NPATS; redraw = true; }
-        if (b & (BTN_NEXT | BTN_PREV)) logf_("  pattern %d", pat + 1);
-        if (b & BTN_A)    { show_info = !show_info; redraw = true; }
-        if (b & (BTN_MARK_BAD | BTN_MARK_OK))
-            logf_("  USER MARK: colors look %s in this mode (pattern %d)", (b & BTN_MARK_BAD) ? "WRONG" : "correct", pat + 1);
+        if (b & BTN_B) {
+            tuning = !tuning; redraw = true;
+            tlog(&c, tuning ? "TUNE START" : "TUNE END");
+        }
+        if (tuning) {
+            // D-pad with gentle auto-repeat: 0.4 s before repeating, then ~9 steps/s
+            u32 dirs = BTN_UP | BTN_DOWN | BTN_LEFT | BTN_RIGHT;
+            u32 ev = b & dirs;
+            bool repeat = false;
+            u64 now = gettime();
+            if (ev) { rep_dir = ev; rep_t0 = rep_last = now; }
+            else if (rep_dir && (held & rep_dir)) {
+                if (now - rep_t0 > millisecs_to_ticks(400) && now - rep_last > millisecs_to_ticks(110)) {
+                    ev = held & rep_dir; rep_last = now; repeat = true;
+                }
+            } else rep_dir = 0;
+            if (ev & BTN_UP)   { tsel = (tsel + NPARAM - 1) % NPARAM; redraw = true; }
+            if (ev & BTN_DOWN) { tsel = (tsel + 1) % NPARAM; redraw = true; }
+            int d = (ev & BTN_RIGHT) ? 1 : (ev & BTN_LEFT) ? -1 : 0;
+            if (d && !(repeat && tclock(tsel))) {          // clock values never auto-repeat
+                int lo, hi, old = tget(&c, tsel);
+                tlimits(&c, tsel, &lo, &hi);
+                int nv = old + d * (tclock(tsel) ? 1 : tstep);
+                if (nv < lo) nv = lo;
+                if (nv > hi) nv = hi;
+                if (nv != old) {
+                    Calc trial = c; tput(&trial, tsel, nv); recalc(&trial);
+                    if (trial.f_khz > 540000) {
+                        logf_("  tune: refused %s=%d (F %lu kHz is above the 540 MHz the VI was verified at)",
+                              pname[tsel], nv, (unsigned long)trial.f_khz);
+                    } else {
+                        tput(&c, tsel, nv);
+                        tune_apply(&c, tclock(tsel), tsel == P_ACV, &front, &back);
+                        redraw = false;
+                        continue;
+                    }
+                }
+            }
+            if (b & BTN_MARK_BAD) { tstep = tstep == 1 ? 8 : 1; redraw = true; }
+            if (b & BTN_MARK_OK)  { tlog(&c, "SNAPSHOT"); log_flush(); }
+            if (b & BTN_RESET) {
+                bool clk = c.clkf != def.clkf || c.vdiv != def.vdiv || c.viclk != def.viclk;
+                bool size = c.acv != def.acv;
+                c = def;
+                logf_("  tune: reset to the mode's own timing");
+                tune_apply(&c, clk, size, &front, &back);
+                continue;
+            }
+            if (b & BTN_A) {
+                cur_meas = measure();
+                tlog(&c, "MEASURED");
+                logf_("    measured line %lu Hz field %lu mHz DPV max %lu", (unsigned long)cur_meas.line_hz,
+                      (unsigned long)cur_meas.field_mhz, (unsigned long)cur_meas.maxline);
+                redraw = true;
+            }
+        } else {
+            if (b & BTN_NEXT) { pat = (pat + 1) % NPATS; redraw = true; }
+            if (b & BTN_PREV) { pat = (pat + NPATS - 1) % NPATS; redraw = true; }
+            if (b & (BTN_NEXT | BTN_PREV)) logf_("  pattern %d", pat + 1);
+            if (b & BTN_A)    { show_info = !show_info; redraw = true; }
+            if (b & (BTN_MARK_BAD | BTN_MARK_OK))
+                logf_("  USER MARK: colors look %s in this mode (pattern %d)", (b & BTN_MARK_BAD) ? "WRONG" : "correct", pat + 1);
+        }
 
         if (pat == 11) {
             // Motion: one new image per VI field. Field-rendered modes draw only the field
