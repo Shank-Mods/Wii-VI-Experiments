@@ -11,6 +11,8 @@
 //   dump=1           try reading registers back (0xE1), 00..FF, and log what answers
 //   bits=1           map the writable bits of 00..7F (write FF / 00, read back, restore)
 //   mode=480i|480p   video mode (default: 480p with a component cable, else the console's)
+//   vimode=NAME      then switch the VI to a custom mode (vimode.c: 480p, 1440x480p, 480p120,
+//                    480x720p, 960x720p, 1280x720p), restored before exit
 //   hold=MS          how long each step stays on screen (default 3000)
 //   w=RR:VV[+RR:VV]  one step: write VV (hex; 2 hex digits per byte, so 71:8e8e is 2 bytes)
 //                    to register RR, several writes per step joined with '+'. Repeatable;
@@ -33,6 +35,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <string.h>
 #include <unistd.h>
 #include <fat.h>
@@ -40,6 +43,7 @@
 #include <ogc/lwp_watchdog.h>
 
 #include "wtb.h"
+#include "vimode.h"
 
 #define MAX_STEPS 1100
 #define MAX_WRITES 8
@@ -298,8 +302,10 @@ static void ave_libogc(void) {
 // ---------------------------------------------------------------------------------------------
 // Picture: drawn straight into the YUY2 framebuffer
 
-static u32 *xfb;
+static u32 *xfb;        // libogc's (safe mode) framebuffer
 static GXRModeObj *rmode;
+static u32 *fb;         // what's drawn into: xfb, or the custom mode's framebuffer
+static int fbW, fbH;
 
 static u32 yuy2(int r, int g, int b) {
     const int y = (299 * r + 587 * g + 114 * b) / 1000;
@@ -310,14 +316,14 @@ static u32 yuy2(int r, int g, int b) {
 }
 
 static void fill(int x0, int y0, int x1, int y1, u32 c) {
-    const int w2 = rmode->fbWidth / 2;
+    const int w2 = fbW / 2;
     for (int y = y0; y < y1; y++)
         for (int x = x0 / 2; x < x1 / 2; x++)
-            xfb[y * w2 + x] = c;
+            fb[y * w2 + x] = c;
 }
 
 static void draw_pattern(void) {
-    const int w = rmode->fbWidth, h = rmode->xfbHeight;
+    const int w = fbW, h = fbH;
     static const int bars[8][3] = {{255, 255, 255}, {255, 255, 0}, {0, 255, 255}, {0, 255, 0},
                                    {255, 0, 255},   {255, 0, 0},   {0, 0, 255},   {0, 0, 0}};
     for (int i = 0; i < 8; i++)
@@ -329,14 +335,14 @@ static void draw_pattern(void) {
     // fine detail: 1-pixel-pair vertical lines and a horizontal line pattern
     for (int y = h * 75 / 100; y < h * 82 / 100; y++)
         for (int x = 0; x < w / 2; x++)
-            xfb[y * (w / 2) + x] = (x & 1) ? yuy2(255, 255, 255) : yuy2(0, 0, 0);
+            fb[y * (w / 2) + x] = (x & 1) ? yuy2(255, 255, 255) : yuy2(0, 0, 0);
     for (int y = h * 82 / 100; y < h * 86 / 100; y++)
         fill(w / 2, y, w, y + 1, (y & 1) ? yuy2(255, 255, 255) : yuy2(0, 0, 0));
 }
 
 // Step code: guard, 12 bits MSB first, guard; white = 1, on a mid-grey band
 static void draw_code(unsigned n) {
-    const int w = rmode->fbWidth, h = rmode->xfbHeight;
+    const int w = fbW, h = fbH;
     const int y0 = h * 88 / 100, y1 = h * 97 / 100, cell = w / 16;
     fill(0, y0, w, y1, yuy2(96, 96, 96));
     fill(cell / 4, y0, cell * 3 / 4, y1, yuy2(255, 255, 255));
@@ -345,14 +351,15 @@ static void draw_code(unsigned n) {
         fill(cell * (i + 2) + cell / 8, y0, cell * (i + 3) - cell / 8, y1, one ? yuy2(255, 255, 255) : yuy2(0, 0, 0));
     }
     fill(cell * 14 + cell / 4, y0, cell * 15 - cell / 4, y1, yuy2(255, 255, 255));
-    DCFlushRange(xfb, rmode->fbWidth * rmode->xfbHeight * 2);
+    DCFlushRange(fb, fbW * fbH * 2);
 }
 
 // Holds the picture for ms, telling the bench's freeze watchdog we're alive every frame
 static void hold_for(unsigned ms) {
     const u64 end = gettime() + millisecs_to_ticks(ms);
+    // (timed, not VIDEO_WaitVSync: a custom VI mode may not raise retrace interrupts)
     while (gettime() < end) {
-        VIDEO_WaitVSync();
+        usleep(16 * 1000);
         wtb_alive();
     }
 }
@@ -483,10 +490,15 @@ static GXRModeObj *pick_mode(int argc, char **argv) {
     return pref;
 }
 
+static void leave_mode(void) { vim_leave(rmode, xfb); }
+
 int main(int argc, char **argv) {
     VIDEO_Init();
     rmode = pick_mode(argc, argv);
     xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+    fb = xfb;
+    fbW = rmode->fbWidth;
+    fbH = rmode->xfbHeight;
     VIDEO_Configure(rmode);
     VIDEO_SetNextFramebuffer(xfb);
     VIDEO_SetBlack(FALSE);
@@ -516,6 +528,8 @@ int main(int argc, char **argv) {
             do_bits = atoi(v) != 0;
         else if (strcmp(n, "reset") == 0)
             do_reset = atoi(v) != 0;
+        else if (strcmp(n, "vimode") == 0 && !vim_select(v))
+            say("unknown vimode '%s' (have: %s)", v, vim_names());
         else if (strcmp(n, "keep") == 0)
             keep = atoi(v) != 0;
         else if (strcmp(n, "w") == 0 && nsteps < MAX_STEPS) {
@@ -552,6 +566,24 @@ int main(int argc, char **argv) {
     say("saved the stored registers' start-up values%s", saved_ok ? "" : " (NOT all readable: restores only libogc's)");
     if (do_dump)
         dump();
+    if (vim_selected()) {
+        // custom VI mode: its own framebuffer (MEM2 for the big ones), the same picture
+        fbW = vim_width();
+        fbH = vim_height();
+        fb = memalign(32, (size_t)fbW * fbH * 2);
+        if (fb == NULL) {
+            say("no memory for a %dx%d framebuffer", fbW, fbH);
+            fb = xfb;
+            fbW = rmode->fbWidth;
+            fbH = rmode->xfbHeight;
+        } else {
+            draw_pattern();
+            draw_code(0);
+            wtb_set_exit_hook(leave_mode);  // a crash/hang exit still puts the boot PLL back
+            vim_enter(fb);
+            say("vimode: %s (%dx%d, VI clock %u kHz)", vim_desc(), fbW, fbH, (unsigned)vim_clock_khz());
+        }
+    }
     if (do_bits) {
         bitmap();
         ave_baseline();
@@ -568,7 +600,7 @@ int main(int argc, char **argv) {
         size_t o = 0;
         step_text(&steps[s], t, sizeof(t));
         draw_code((unsigned)(s + 1));
-        VIDEO_WaitVSync();
+        usleep(20 * 1000);
         acks[0] = 0;
         for (int i = 0; i < steps[s].n; i++) {
             for (int k = 0; k < steps[s].len[i]; k++)
@@ -595,6 +627,7 @@ int main(int argc, char **argv) {
     draw_code(0);
     say("restored the baseline at %u ms", ms_now());
     hold_for(1000);
+    leave_mode();
     wtb_send_file("ave.txt", logbuf, loglen);
     wtb_done("ok");
     return 0;
